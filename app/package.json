@@ -1,0 +1,23 @@
+{
+  "name": "dsh-mobile-app",
+  "version": "0.1.0",
+  "description": "DSH-Mobile: flow the DeepSeek Harness web UI onto your phone. Scan-to-pair, pairing history, embedded remote UI.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "cap:sync": "cap sync",
+    "cap:add:android": "cap add android",
+    "cap:open:android": "cap open android",
+    "build:apk": "cd android && gradlew.bat assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/status-bar": "^8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
+    "typescript": "^5.9.3"
+  }
+}

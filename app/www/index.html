@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <title>DSH Mobile</title>
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+  <!-- ============ View: pairing list ============ -->
+  <section id="view-home" class="view active">
+    <header class="topbar">
+      <h1 class="brand">DSH Mobile</h1>
+      <div class="topbar-actions">
+        <button id="btn-scan" class="btn primary" type="button">Scan QR</button>
+      </div>
+    </header>
+    <main class="content">
+      <p class="hint">
+        Pair with the DeepSeek Harness running on your computer:
+        scan the QR code shown in <b>DSH web → Settings → Plugins → Mobile access</b>
+        (dsh-pocket). Or add the URL manually.
+      </p>
+      <ul id="pairing-list" class="pair-list"></ul>
+      <p id="empty-list" class="empty hidden">No pairings yet. Scan a QR code to begin.</p>
+      <button id="btn-manual" class="btn ghost full" type="button">+ Add URL manually</button>
+    </main>
+    <footer class="foot">
+      <span>io.dsh.mobile · DSH-Mobile</span>
+    </footer>
+  </section>
+
+  <!-- ============ View: scan ============ -->
+  <section id="view-scan" class="view">
+    <header class="topbar">
+      <button id="btn-cancel-scan" class="btn" type="button">Cancel</button>
+      <h1 class="title">Scan QR code</h1>
+      <span class="spacer"></span>
+    </header>
+    <main class="scan-area">
+      <p class="scan-hint">Point the camera at the QR code shown by dsh-pocket on the Harness settings page.</p>
+      <div id="scan-confirm" class="scan-confirm hidden">
+        <p class="scanned-url" id="scanned-url"></p>
+        <div class="row">
+          <button id="btn-scan-again" class="btn" type="button">Scan again</button>
+          <button id="btn-use-url" class="btn primary" type="button">Use this address</button>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <!-- ============ View: remote (embedded DSH web UI) ============ -->
+  <section id="view-remote" class="view">
+    <header class="remote-bar">
+      <button id="btn-back" class="btn icon" type="button" title="Back to pairings">‹</button>
+      <div class="remote-url" id="remote-url" title=""></div>
+      <button id="btn-reload" class="btn icon" type="button" title="Reload">⟳</button>
+      <button id="btn-disconnect" class="btn icon" type="button" title="Disconnect">✕</button>
+    </header>
+    <div class="remote-host">
+      <iframe id="remote-frame"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock"></iframe>
+    </div>
+  </section>
+
+  <!-- ============ Dialog: manual URL ============ -->
+  <dialog id="dlg-manual" class="dlg">
+    <form method="dialog" id="form-manual">
+      <h2>Add Harness URL</h2>
+      <label for="input-name">Name</label>
+      <input id="input-name" type="text" placeholder="e.g. Home PC" autocomplete="off" />
+      <label for="input-url">URL</label>
+      <input id="input-url" type="url" placeholder="http://192.168.1.10:3081 or https://xxx.trycloudflare.com" autocomplete="off" />
+      <div class="row">
+        <button value="cancel" class="btn" type="button" id="btn-dlg-cancel">Cancel</button>
+        <button value="ok" class="btn primary" type="submit">Add</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status"></div>
+
+  <script src="js/bridge.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
