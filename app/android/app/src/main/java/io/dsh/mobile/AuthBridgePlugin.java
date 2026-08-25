@@ -11,6 +11,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.CookieHandler;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -18,19 +19,22 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 /**
- * AuthBridgePlugin: completes the dsh-pocket PIN login natively and injects
- * the session cookie into the WebView cookie store.
+ * AuthBridgePlugin: completes the dsh-pocket PIN login natively and either
+ * (a) seeds the WebView cookie store, or (b) full-page navigates the shell to
+ * the remote harness.
  *
- * Why: Android WebView blocks autofocus and form submission *inside a
- * cross-origin iframe* (the DSH remote UI is hosted in one), so the
- * dsh-pocket /pocket-login form cannot be submitted from within the frame.
- * This plugin performs the same POST with a plain HTTP client, captures the
- * HttpOnly session cookie from the 302 response, and plants it via
- * CookieManager so the iframe's next load carries the session.
+ * Why: Android WebView blocks autofocus/form submission inside a cross-origin
+ * iframe, and SameSite cookies are not forwarded to cross-site iframe
+ * requests at all. Loading the harness as the *top-level* page (full-page
+ * navigation) makes it same-site, so session cookies flow naturally to every
+ * API/WS request. The pairing list stays in the Capacitor shell; the android
+ * back button (handled natively in MainActivity) returns to it.
  *
  * Exposed as Capacitor plugin "AuthBridge":
- *   check({ url })                -> { protected: bool, reachable: bool }
+ *   check({ url })                -> { protected, reachable }  (NO cookies)
  *   login({ url, pin })           -> { ok, status, token }
+ *   open({ url })                 -> full-page navigate to remote
+ *   isRemote()                    -> { remote: bool }
  */
 @CapacitorPlugin(name = "AuthBridge")
 public class AuthBridgePlugin extends Plugin {
@@ -40,11 +44,22 @@ public class AuthBridgePlugin extends Plugin {
     private static final String VERIFY_MARK_EN = "password-protected";
     private static final int TIMEOUT_MS = 10_000;
 
+    /** True while the WebView is showing a remote harness (full-page). */
+    private static volatile boolean inRemote = false;
+
+    public static boolean isRemote() {
+        return inRemote;
+    }
+
+    public static void setRemote(boolean v) {
+        inRemote = v;
+    }
+
     /**
-     * Probe a remote origin without authenticating: does it sit behind the
-     * dsh-pocket password gate? A GET that returns the verify page (zh/en
-     * markers) or 401 means protected; anything else (real DSH HTML/302/403
-     * from upstream) means the LAN PIN switch is off and direct access works.
+     * Probe WITHOUT cookies (important: the global CapacitorCookieManager
+     * silently re-sends the session cookie we planted, which would make the
+     * origin look unprotected). Temporarily replace the global CookieHandler
+     * with a reject-all one, probe, then restore.
      */
     @PluginMethod
     public void check(PluginCall call) {
@@ -54,7 +69,13 @@ public class AuthBridgePlugin extends Plugin {
             return;
         }
         new Thread(() -> {
+            CookieHandler prev = null;
             try {
+                prev = CookieHandler.getDefault();
+            } catch (Throwable ignored) {
+            }
+            try {
+                CookieHandler.setDefault(new java.net.CookieManager(null, java.net.CookiePolicy.ACCEPT_NONE));
                 String base = url.replaceAll("/+$", "");
                 URL target = new URL(base + "/");
                 HttpURLConnection conn = (HttpURLConnection) target.openConnection();
@@ -80,8 +101,65 @@ public class AuthBridgePlugin extends Plugin {
                 ret.put("reachable", false);
                 ret.put("error", String.valueOf(ex));
                 call.resolve(ret);
+            } finally {
+                if (prev != null) {
+                    try {
+                        CookieHandler.setDefault(prev);
+                    } catch (Throwable ignored) {
+                    }
+                }
             }
         }).start();
+    }
+
+    /**
+     * Full-page navigate the WebView to the remote harness. This makes the
+     * remote page the top-level document (same-site), so the session cookie
+     * planted by login() is sent with every API/WS request.
+     */
+    @PluginMethod
+    public void open(PluginCall call) {
+        String url = call.getString("url");
+        if (url == null) {
+            call.reject("missing url");
+            return;
+        }
+        inRemote = true;
+        getActivity().runOnUiThread(() -> {
+            try {
+                getBridge().getWebView().loadUrl(url);
+                JSObject ret = new JSObject();
+                ret.put("ok", true);
+                call.resolve(ret);
+            } catch (Exception ex) {
+                inRemote = false;
+                call.reject("navigate failed: " + ex);
+            }
+        });
+    }
+
+    /** Go back to the Capacitor shell (pairing list). */
+    @PluginMethod
+    public void exit(PluginCall call) {
+        inRemote = false;
+        getActivity().runOnUiThread(() -> {
+            try {
+                getBridge().getWebView().loadUrl(getBridge().getLocalUrl());
+                JSObject ret = new JSObject();
+                ret.put("ok", true);
+                call.resolve(ret);
+            } catch (Exception ex) {
+                call.reject("exit failed: " + ex);
+            }
+        });
+    }
+
+    /** Query whether the WebView is currently showing a remote harness. */
+    @PluginMethod
+    public void isRemote(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("remote", inRemote);
+        call.resolve(ret);
     }
 
     @PluginMethod
