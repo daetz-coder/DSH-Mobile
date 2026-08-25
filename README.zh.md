@@ -98,10 +98,9 @@ Web 界面的**安卓原生配套 App**。用二维码与电脑端 `dsh web` 配
 
 ## 给开发者
 
-- 源码结构、设计笔记与验证记录：[docs/](docs/)
 - 构建 APK：`cd app && npm install && npx cap sync android`，
   再 `cd android && .\gradlew.bat :app:assembleDebug`（需 JDK 21）
-- 二开上游及具体版本：[UPSTREAM.md](UPSTREAM.md)
+- 二开插件：`dsh-pocket` v1.13.4（GPL-2.0）、`dsh-web-mobile` v2.1.1（MIT）
 
 ## License
 
@@ -115,7 +114,6 @@ Web 界面的**安卓原生配套 App**。用二维码与电脑端 `dsh web` 配
 
 基于 [Capacitor](https://capacitorjs.com)（MIT）与官方
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 构建。
-具体二开版本见 [UPSTREAM.md](UPSTREAM.md)。
 
 > **通过 [dshmarket.com](https://dshmarket.com) 安装插件的用户请注意：**
 > 两个插件遵循各自协议——**dsh-pocket 为 GPL-2.0**（修改后分发必须保持

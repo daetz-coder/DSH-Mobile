@@ -103,10 +103,9 @@ notification mirrors the desktop's native progress text second-by-second.
 
 ## For developers
 
-- Source layout, design notes and validation records: [docs/](docs/)
 - Build the APK: `cd app && npm install && npx cap sync android`, then
   `cd android && .\gradlew.bat :app:assembleDebug` (JDK 21 required)
-- Vendored upstreams and exact versions: [UPSTREAM.md](UPSTREAM.md)
+- Vendored plugins: `dsh-pocket` v1.13.4 (GPL-2.0), `dsh-web-mobile` v2.1.1 (MIT)
 
 ## License
 
@@ -121,7 +120,6 @@ Dual-licensed by component:
 
 Build with [Capacitor](https://capacitorjs.com) (MIT) and the official
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
-See [UPSTREAM.md](UPSTREAM.md) for the exact vendored versions.
 
 > **For users installing via [dshmarket.com](https://dshmarket.com):** the two
 > plugins are governed by their own licenses — **dsh-pocket is GPL-2.0**
