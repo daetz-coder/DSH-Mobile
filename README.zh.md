@@ -3,6 +3,7 @@
 [English](README.md) | **中文**
 
 <p align="center">
+  <a href="https://daetz-coder.github.io/DSH-Mobile/"><img src="https://img.shields.io/badge/landing%20page-daetz--coder.github.io%2FDSH--Mobile-4176E6" alt="落地页"></a>
   <img src="https://img.shields.io/badge/platform-Android-3ddc84" alt="平台：Android">
   <img src="https://img.shields.io/badge/Android-8%2B-3ddc84" alt="Android 8+">
   <img src="https://img.shields.io/badge/Capacitor-8-3880ff" alt="Capacitor 8">
@@ -92,8 +93,10 @@ Web 界面的**安卓原生配套 App**。用二维码与电脑端 `dsh web` 配
 
 | 渠道 | 方式 |
 |------|------|
-| **GitHub Release** | 打 tag 后 CI 自动构建 debug + release APK |
-| **侧载** | `adb install -r app-debug.apk`，或手机直接打开 APK |
+| **落地页** | [daetz-coder.github.io/DSH-Mobile](https://daetz-coder.github.io/DSH-Mobile/)——「下载 APK」一键直达 |
+| **GitHub Release** | [Releases](https://github.com/daetz-coder/DSH-Mobile/releases)——每个 tag 附带 `DSH-Mobile.apk`（CI 自动构建） |
+| **Obtainium** | 把 `https://github.com/daetz-coder/DSH-Mobile` 添加为应用源——自动跟随 Release 更新 |
+| **侧载** | `adb install -r DSH-Mobile.apk`，或手机直接打开 APK |
 | **源码构建** | 见下方「给开发者」 |
 
 ## 给开发者

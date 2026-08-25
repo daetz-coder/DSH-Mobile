@@ -3,6 +3,7 @@
 **English** | [中文](README.zh.md)
 
 <p align="center">
+  <a href="https://daetz-coder.github.io/DSH-Mobile/"><img src="https://img.shields.io/badge/landing%20page-daetz--coder.github.io%2FDSH--Mobile-4176E6" alt="landing page"></a>
   <img src="https://img.shields.io/badge/platform-Android-3ddc84" alt="platform: Android">
   <img src="https://img.shields.io/badge/Android-8%2B-3ddc84" alt="Android 8+">
   <img src="https://img.shields.io/badge/Capacitor-8-3880ff" alt="Capacitor 8">
@@ -97,8 +98,10 @@ notification mirrors the desktop's native progress text second-by-second.
 
 | Channel | How |
 |---------|-----|
-| **GitHub Release** | APK attached to each tag (debug + release built by CI) |
-| **Sideload** | `adb install -r app-debug.apk`, or open the APK on the phone |
+| **Landing page** | [daetz-coder.github.io/DSH-Mobile](https://daetz-coder.github.io/DSH-Mobile/) — direct "Download APK" button |
+| **GitHub Release** | [Releases](https://github.com/daetz-coder/DSH-Mobile/releases) — `DSH-Mobile.apk` per tag (built by CI) |
+| **Obtainium** | Add `https://github.com/daetz-coder/DSH-Mobile` as an app source — it tracks GitHub Releases and auto-updates the app |
+| **Sideload** | `adb install -r DSH-Mobile.apk`, or open the APK on the phone |
 | **Build from source** | see *For developers* below |
 
 ## For developers

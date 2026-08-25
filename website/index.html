@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DSH-Mobile · 把 DeepSeek Harness 装进口袋</title>
+<meta name="description" content="DSH-Mobile — scan-to-pair Android companion for the official DeepSeek Harness Web UI. 扫码配对一次，之后随时随地用手机查看/控制电脑上的 DeepSeek Harness。">
+<meta property="og:title" content="DSH-Mobile — DeepSeek Harness, in your pocket">
+<meta property="og:description" content="Pair once by QR code — then watch and control your desktop DeepSeek Harness from your phone, anywhere.">
+<meta property="og:image" content="promo-poster.png">
+<style>
+  :root {
+    --bg: #ffffff; --text: #0F1115; --muted: #5f6672;
+    --primary: #4176E6; --primary-ink: #ffffff;
+    --divider: rgba(15,17,21,.12); --card: #f7f8fa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text);
+    line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--primary); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .wrap { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+
+  header.hero { text-align: center; margin-bottom: 40px; }
+  .logo { width: 72px; height: 72px; border-radius: 16px; margin-bottom: 16px; }
+  h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; }
+  .tagline {
+    margin-top: 10px; font-size: 16px; color: var(--muted);
+    max-width: 560px; margin-inline: auto;
+  }
+  .tagline strong { color: var(--text); font-weight: 600; }
+
+  .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 28px 0 36px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 13px 26px; border-radius: 10px; font-size: 15px; font-weight: 600;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+  .btn-primary { background: var(--primary); color: var(--primary-ink); box-shadow: 0 4px 16px rgba(65,118,230,.35); }
+  .btn-ghost { border: 1px solid var(--divider); background: var(--card); color: var(--text); }
+  .ver { font-size: 12.5px; color: var(--muted); text-align: center; margin-top: 10px; }
+
+  .poster { width: 100%; max-width: 720px; margin: 0 auto 48px; display: block; border-radius: 14px; }
+
+  section { margin-bottom: 44px; }
+  h2 { font-size: 21px; font-weight: 700; margin-bottom: 16px; }
+  .feats { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .feat {
+    background: var(--card); border: 1px solid var(--divider);
+    border-radius: 12px; padding: 18px 16px;
+  }
+  .feat h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .feat p { font-size: 13.5px; color: var(--muted); }
+
+  .shots { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .shots img { width: 240px; border-radius: 14px; border: 1px solid var(--divider); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--divider); }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  code { background: var(--card); border: 1px solid var(--divider); border-radius: 6px; padding: 1px 6px; font-size: 12.5px; }
+
+  footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 40px; }
+
+  @media (max-width: 640px) {
+    h1 { font-size: 26px; }
+    .cta-row { flex-direction: column; align-items: stretch; }
+    .btn { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <img class="logo" src="app-icon.png" alt="DSH-Mobile icon">
+    <h1>DSH-Mobile</h1>
+    <p class="tagline">
+      <strong>把 DeepSeek Harness 装进口袋</strong><br>
+      Pair once by QR code — then watch and control your desktop
+      DeepSeek Harness from your phone, anywhere.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/daetz-coder/DSH-Mobile/releases/latest/download/DSH-Mobile.apk" download>↓ 下载 APK</a>
+      <a class="btn btn-ghost" href="https://github.com/daetz-coder/DSH-Mobile">GitHub 仓库</a>
+      <a class="btn btn-ghost" href="#guide">使用指南</a>
+    </div>
+    <p class="ver">Android 8+ · scan-to-pair · LAN + public tunnel</p>
+  </header>
+
+  <img class="poster" src="promo-poster.png" alt="DSH-Mobile promo poster">
+
+  <section>
+    <h2>✦ 特性</h2>
+    <div class="feats">
+      <div class="feat"><h3>📷 扫码配对</h3><p>扫电脑 DSH 的二维码即连，配对记录加密保存，重开即达。</p></div>
+      <div class="feat"><h3>🔐 PIN 自动登录</h3><p>首次输入 8 位访问密码自动加密保存，之后免输。</p></div>
+      <div class="feat"><h3>🖥️ 官方界面整页呈现</h3><p>以 top-level 页加载，非 iframe，与桌面体验一致。</p></div>
+      <div class="feat"><h3>🔔 常驻状态通知</h3><p>逐秒同步桌面原生进度文本，任务结束自动转「已完成」。</p></div>
+      <div class="feat"><h3>🌐 局域网 + 公网</h3><p>同一 WiFi 直连，外出走 cloudflared 快速隧道。</p></div>
+      <div class="feat"><h3>🌙 深色模式 + 双语</h3><p>跟随 DSH 主题，App 内 zh/en 随时切换。</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>📸 运行效果</h2>
+    <div class="shots">
+      <img src="screens.png" alt="DSH-Mobile screens">
+    </div>
+  </section>
+
+  <section id="guide">
+    <h2>🚀 快速开始</h2>
+    <table>
+      <tr><th>步骤</th><th>说明</th></tr>
+      <tr><td>1. 电脑端</td><td>安装两个服务端插件（<a href="https://dshmarket.com/p/shaobeichen/dsh-pocket/">dsh-pocket</a>、<a href="https://dshmarket.com/p/mexiaosqwq/dsh-web-mobile/">dsh-web-mobile</a>），然后 <code>npx @deepseek-ai/dsh web</code></td></tr>
+      <tr><td>2. 手机端</td><td>下载 APK 并安装（上方按钮）</td></tr>
+      <tr><td>3. 配对</td><td>打开 App → 扫码 → 输入一次 8 位 PIN → 完成 🎉</td></tr>
+    </table>
+    <p style="margin-top:14px;font-size:13.5px;color:var(--muted)">
+      插件市场：<a href="https://dshmarket.com">dshmarket.com</a> ·
+      推荐版本：dsh-pocket v1.13.4 · dsh-web-mobile v2.1.1（已测试，无需其他扩展）
+    </p>
+  </section>
+
+  <section>
+    <h2>🔒 安全</h2>
+    <p style="font-size:14px;color:var(--muted)">
+      DSH 能在你电脑上执行代码——配对 URL / PIN / 会话 cookie 就是钥匙，
+      不要分享、不要提交到公开地方。PIN 存在电脑端，手机只持有加密配对记录。
+    </p>
+  </section>
+
+  <footer>
+    DSH-Mobile · MIT (App shell) / GPL-2.0 (dsh-pocket) ·
+    <a href="https://github.com/daetz-coder/DSH-Mobile/blob/main/README.md">README</a>
+  </footer>
+</div>
+</body>
+</html>
