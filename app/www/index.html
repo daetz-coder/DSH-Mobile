@@ -49,14 +49,12 @@
     </main>
   </section>
 
-  <!-- ============ View: remote (embedded DSH web UI, immersive) ============ -->
+  <!-- ============ View: remote (full-page, native-overridden) ============
+       The remote harness replaces this page entirely via
+       AuthBridgePlugin.open(); this section is only a brief loading state. -->
   <section id="view-remote" class="view">
-    <!-- No visible chrome: the DSH UI fills the screen like a native app.
-         Exit via the Android back button (see app.js backButton listener),
-         or the small overlay affordance shown during load. -->
     <div class="remote-host">
-      <iframe id="remote-frame"></iframe>
-      <button id="btn-remote-exit" class="remote-exit" type="button" title="Back to pairings">‹</button>
+      <div class="remote-loading">Opening Harness…</div>
     </div>
   </section>
 

@@ -1,8 +1,10 @@
 /**
  * DSH-Mobile main app logic.
  *
- * Three views: pairing list (home), scanner (native overlay via plugin
- * bridge), and remote (iframe embedding the DSH web UI served by dsh-pocket).
+ * Two interactive views: pairing list (home) and scanner (native overlay via
+ * plugin bridge). The remote Harness is opened via full-page navigation
+ * (AuthBridgePlugin.open), so the shell page is replaced while remote and
+ * restored by the Android back button (handled natively in MainActivity).
  */
 
 import * as store from './store.js';
@@ -256,11 +258,26 @@ async function openRemote(id, url, opts = {}) {
     return;
   }
 
+  // Full-page navigation (AuthBridgePlugin.open): the harness becomes the
+  // top-level document so session cookies flow to every API/WS request.
+  // The shell (pairing list) is restored via the Android back button,
+  // handled natively in MainActivity.
   activePairingId = id;
-  const frame = $('remote-frame');
-  frame.src = targetUrl;
-  showView('remote');
   store.touchPairing(id);
+  const bridge = authBridge();
+  if (bridge) {
+    try {
+      const ok = await bridge.open(targetUrl);
+      console.log('[dsh-mobile] open remote:', targetUrl, 'ok:', ok);
+    } catch (err) {
+      console.error('[dsh-mobile] open remote failed', err);
+      toast('Failed to open remote harness', true);
+      renderList();
+    }
+  } else {
+    // Plain-browser preview: whole-window navigation.
+    window.location.href = targetUrl;
+  }
   if (authFailed) {
     toast('PIN login failed — reconnect or retry', true);
   }
@@ -306,34 +323,11 @@ $('btn-pin-ok').addEventListener('click', async () => {
 
 $('btn-pin-cancel').addEventListener('click', () => $('dlg-pin').close());
 
-/** Leave the remote view back to the pairing list. */
-function exitRemote() {
-  $('remote-frame').src = 'about:blank';
-  activePairingId = null;
-  renderList();
-  showView('home');
-}
-
-$('btn-remote-exit').addEventListener('click', exitRemote);
-
-/* ---------------- Android back button ----------------
-   Native-app feel: in the remote view the system back returns to the
-   pairing list; anywhere else it exits the app (Capacitor default). */
-(function initBackButton() {
-  const cap = typeof window !== 'undefined' ? (window.Capacitor || null) : null;
-  const appPlugin = cap && cap.Plugins && cap.Plugins.App;
-  if (!appPlugin) return; // plain browser preview: no back handling
-  // Capacitor 8 addListener returns a listener handle object, NOT a promise —
-  // errors surface via the ('backButton') event only.
-  appPlugin.addListener('backButton', (info) => {
-    const remoteActive = views.remote.classList.contains('active');
-    if (remoteActive) {
-      // Intercept: go back to pairings instead of exiting the app.
-      exitRemote();
-    }
-    // Otherwise leave default behaviour (minimize/exit).
-  });
-})();
+/* ---------------- remote back handling ----------------
+   Full-page remote navigation means the pairing shell page is replaced; the
+   Android back button while remote is handled natively in MainActivity
+   (returns to the shell). On the shell page, default Capacitor back
+   behaviour applies (exit app). No JS listener needed here. */
 
 /* ---------------- init ---------------- */
 

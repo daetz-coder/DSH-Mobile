@@ -48,6 +48,18 @@
         const r = await auth.login({ url, pin });
         return { ok: !!(r && r.ok), token: (r && r.token) || null, status: r && r.status };
       },
+      async open(url) {
+        const r = await auth.open({ url });
+        return !!(r && r.ok);
+      },
+      async exit() {
+        const r = await auth.exit({});
+        return !!(r && r.ok);
+      },
+      async isRemote() {
+        const r = await auth.isRemote({});
+        return !!(r && r.remote);
+      },
     };
   }
 })();
