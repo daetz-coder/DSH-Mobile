@@ -9,6 +9,7 @@
 
 import * as store from './store.js';
 import * as qr from './qr.js';
+import { t, initI18n } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -68,7 +69,7 @@ async function renderList() {
 
     const meta = document.createElement('div');
     meta.className = 'pair-meta';
-    meta.textContent = 'Last used ' + (item.lastUsedAt ? new Date(item.lastUsedAt).toLocaleString() : '—');
+    meta.textContent = t('lastUsed') + (item.lastUsedAt ? new Date(item.lastUsedAt).toLocaleString() : '—');
 
     main.append(name, url, meta);
 
@@ -76,13 +77,13 @@ async function renderList() {
     del.className = 'pair-del';
     del.type = 'button';
     del.textContent = '✕';
-    del.setAttribute('aria-label', 'Remove pairing');
+    del.setAttribute('aria-label', t('removePairing'));
     del.addEventListener('click', async (ev) => {
       ev.stopPropagation();
       await store.removePairing(item.id);
       if (activePairingId === item.id) activePairingId = null;
       renderList();
-      toast('Pairing removed');
+      toast(t('pairingRemoved'));
     });
 
     li.append(main, del);
@@ -125,7 +126,7 @@ $('form-manual').addEventListener('submit', async (ev) => {
   console.log('[dsh-mobile] submit rawUrl:', JSON.stringify(rawUrl));
   const url = store.normalizeUrl(rawUrl);
   if (!url) {
-    setDlgError('Invalid URL — expected http(s)://...');
+    setDlgError(t('invalidUrl'));
     return;
   }
   try {
@@ -136,7 +137,7 @@ $('form-manual').addEventListener('submit', async (ev) => {
     openRemote(entry.id, entry.url);
   } catch (err) {
     console.error('[dsh-mobile] add failed', err);
-    setDlgError('Failed to save pairing: ' + (err && err.message ? err.message : err));
+    setDlgError(t('failedSave') + (err && err.message ? err.message : err));
   }
 });
 
@@ -155,7 +156,7 @@ $('btn-scan').addEventListener('click', async () => {
     const url = store.normalizeUrl(payload);
     if (!url) {
       $('scanned-url').textContent = payload;
-      toast('Scanned value is not a valid URL', true);
+      toast(t('invalidUrl'), true);
       renderList();
       showView('home');
       return;
@@ -169,7 +170,7 @@ $('btn-scan').addEventListener('click', async () => {
     $('btn-use-url').dataset.url = url;
   } catch (err) {
     console.error('[scan] failed', err);
-    toast('Scanner error: ' + (err && err.message ? err.message : err), true);
+    toast(t('scannerError') + (err && err.message ? ': ' + err.message : ''), true);
     renderList();
     showView('home');
   }
@@ -186,7 +187,7 @@ $('btn-scan-again').addEventListener('click', async () => {
     }
     const url = store.normalizeUrl(payload);
     if (!url) {
-      toast('Scanned value is not a valid URL', true);
+      toast(t('invalidUrl'), true);
       renderList();
       showView('home');
       return;
@@ -197,7 +198,7 @@ $('btn-scan-again').addEventListener('click', async () => {
     $('btn-use-url').dataset.id = entry.id;
     $('btn-use-url').dataset.url = url;
   } catch (err) {
-    toast('Scanner error', true);
+    toast(t('scannerError'), true);
     renderList();
     showView('home');
   }
@@ -271,7 +272,7 @@ async function openRemote(id, url, opts = {}) {
       console.log('[dsh-mobile] open remote:', targetUrl, 'ok:', ok);
     } catch (err) {
       console.error('[dsh-mobile] open remote failed', err);
-      toast('Failed to open remote harness', true);
+      toast(t('openRemoteFailed'), true);
       renderList();
     }
   } else {
@@ -279,7 +280,7 @@ async function openRemote(id, url, opts = {}) {
     window.location.href = targetUrl;
   }
   if (authFailed) {
-    toast('PIN login failed — reconnect or retry', true);
+    toast(t('pinUnlockFailed'), true);
   }
 }
 
@@ -313,7 +314,7 @@ $('btn-pin-ok').addEventListener('click', async () => {
   const url = $('btn-pin-ok').dataset.url;
   const pin = $('input-pin').value.trim();
   if (!/^\d{4,16}$/.test(pin)) {
-    setPinError('PIN should be 4–16 digits');
+    setPinError(t('pinError'));
     return;
   }
   await store.setPairingPin(id, pin);
@@ -332,8 +333,9 @@ $('btn-pin-cancel').addEventListener('click', () => $('dlg-pin').close());
 /* ---------------- init ---------------- */
 
 (async function init() {
+  initI18n();
+  window.addEventListener('dsh:langchange', () => renderList());
   const items = await store.loadAll();
-  // If we came back via bridge reload, restore last pairing? Keep simple: always list.
   renderList();
-  console.log('[dsh-mobile] ready, pairings:', items.length);
+  console.log('[dsh-mobile] ready, pairings:', items.length, 'lang:', t('scanQr'));
 })();
