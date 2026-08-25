@@ -57,6 +57,8 @@ const STRINGS = {
     emptyName: '名称不能为空',
     renamed: '已重命名',
     updateAvailable: '更新可用，请到 GitHub Releases 下载',
+    connectedTitle: 'DSH 已连接',
+    connectedBody: '正在查看电脑上的 Harness',
   },
   en: {
     langLabel: 'Language',
@@ -98,6 +100,8 @@ const STRINGS = {
     emptyName: 'Name cannot be empty',
     renamed: 'Renamed',
     updateAvailable: 'update available — grab it from GitHub Releases',
+    connectedTitle: 'DSH connected',
+    connectedBody: 'Viewing the harness on your computer',
   },
 };
 

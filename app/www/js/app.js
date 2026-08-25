@@ -9,6 +9,7 @@
 
 import * as store from './store.js';
 import * as qr from './qr.js';
+import * as notify from './notify.js';
 import { t, initI18n } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
@@ -377,6 +378,15 @@ async function openRemote(id, url, opts = {}) {
     try {
       const ok = await bridge.open(targetUrl);
       console.log('[dsh-mobile] open remote:', targetUrl, 'ok:', ok);
+      if (ok) {
+        // Connection established — surface a quiet system notification.
+        // (Permission prompt appears on first use, Android 13+.)
+        notify.notify({
+          title: t('connectedTitle'),
+          body: t('connectedBody'),
+          id: 1,
+        }).catch(() => {});
+      }
     } catch (err) {
       console.error('[dsh-mobile] open remote failed', err);
       toast(t('openRemoteFailed'), true);
@@ -506,4 +516,17 @@ function compareVersions(a, b) {
   console.log('[dsh-mobile] ready, pairings:', items.length, 'lang:', t('scanQr'));
   showVersion();
   checkForUpdates();
+
+  // Dev/test hook: long-press the brand title to fire a demo notification
+  // (also exercises the Android 13+ permission prompt on first use).
+  const brand = document.querySelector('.brand');
+  if (brand) {
+    let timer = null;
+    brand.addEventListener('pointerdown', () => {
+      timer = setTimeout(() => notify.testNotification(), 600);
+    });
+    brand.addEventListener('pointerup', () => clearTimeout(timer));
+    brand.addEventListener('pointerleave', () => clearTimeout(timer));
+    brand.addEventListener('pointercancel', () => clearTimeout(timer));
+  }
 })();
