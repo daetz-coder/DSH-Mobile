@@ -146,8 +146,9 @@ public class QrScannerPlugin extends Plugin {
         // 64px button is only ~21dp — tiny and clipped by the status bar.
         final float density = getContext().getResources().getDisplayMetrics().density;
         int dp = (int) Math.ceil(density);
-        int dp64 = (int) (64 * density);
+        int dp44 = (int) (44 * density);
         int dp24 = (int) (24 * density);
+        int dpStroke = Math.max(1, (int) (1.2f * density));
 
         // Reserve the system status-bar height plus a comfortable margin so the
         // button never sits under the floating status bar (edge-to-edge), where
@@ -161,16 +162,24 @@ public class QrScannerPlugin extends Plugin {
             statusBarInset = insets.top;
         } catch (Exception ignored) {
         }
-        final int topMargin = statusBarInset + dp24 * 2;
+        final int topMargin = statusBarInset + dp24;
 
-        // Cancel affordance (top-right, comfortable 48dp touch target).
+        // Cancel affordance — DSH-flavored "glass" circle: dark translucent
+        // fill + hairline white ring + white glyph, flat (no shadow), matching
+        // the Harness's minimal design language.
         TextView cancel = new TextView(getContext());
         cancel.setText("\u2715");
-        cancel.setTextSize(26f);
+        cancel.setTextSize(22f);
+        cancel.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
         cancel.setTextColor(0xFFFFFFFF);
-        cancel.setBackgroundColor(0x66000000);
         cancel.setGravity(Gravity.CENTER);
-        FrameLayout.LayoutParams cancelLp = new FrameLayout.LayoutParams(dp64, dp64);
+        android.graphics.drawable.GradientDrawable cancelBg = new android.graphics.drawable.GradientDrawable();
+        cancelBg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        cancelBg.setColor(0x66111919);          // translucent ink fill (flat)
+        cancelBg.setStroke(dpStroke, 0x59FFFFFF); // hairline white ring
+        cancel.setBackground(cancelBg);
+        cancel.setContentDescription("Close scanner");
+        FrameLayout.LayoutParams cancelLp = new FrameLayout.LayoutParams(dp44, dp44);
         cancelLp.gravity = Gravity.TOP | Gravity.END;
         cancelLp.setMargins(0, topMargin, dp24, 0);
         cancel.setLayoutParams(cancelLp);
