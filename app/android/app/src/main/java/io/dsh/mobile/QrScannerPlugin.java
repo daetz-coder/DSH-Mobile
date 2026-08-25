@@ -98,6 +98,11 @@ public class QrScannerPlugin extends Plugin {
             return;
         }
         pendingCall = call;
+        // Reset per-scan state: teardown() flips analyzing=false on the
+        // previous run; without resetting here the second scan opens the
+        // camera but drops every frame (never decodes).
+        analyzing = true;
+        lastAnalyzeAt = 0L;
         // All UI work (overlay add + camera bound) MUST run on the Android UI
         // thread — Capacitor invokes @PluginMethod on the bridge thread, and
         // addView there throws "Only the original thread that created a view
@@ -111,6 +116,13 @@ public class QrScannerPlugin extends Plugin {
 
     private void initScannerUi() {
         try {
+            // Ensure any previous executor is fully gone before spinning a new
+            // one: a stale analyzed frame racing the new analyzer could close
+            // an ImageProxy twice or out-of-order (camera stalls / can't exit).
+            if (analysisExecutor != null) {
+                analysisExecutor.shutdownNow();
+                analysisExecutor = null;
+            }
             analysisExecutor = Executors.newSingleThreadExecutor();
             buildOverlay();
             setupCamera();
@@ -291,20 +303,26 @@ public class QrScannerPlugin extends Plugin {
 
     private void teardown() {
         analyzing = false;
-        mainHandler.post(() -> {
-            try {
-                if (cameraProvider != null) cameraProvider.unbindAll();
-            } catch (Exception ignored) {
-            }
-            if (overlay != null && overlay.getParent() != null) {
-                ((ViewGroup) overlay.getParent()).removeView(overlay);
-            }
-            overlay = null;
-            previewView = null;
-            cameraProvider = null;
-        });
+        // Snapshot then clear first so double-teardown (scan cancel + re-scan
+        // racing) can never resolve the same call twice or touch a null ref.
+        PluginCall call = pendingCall;
+        if (overlay != null) {
+            final FrameLayout ov = overlay;
+            mainHandler.post(() -> {
+                try {
+                    if (cameraProvider != null) cameraProvider.unbindAll();
+                } catch (Exception ignored) {
+                }
+                if (ov != null && ov.getParent() != null) {
+                    ((ViewGroup) ov.getParent()).removeView(ov);
+                }
+            });
+        }
+        overlay = null;
+        previewView = null;
+        cameraProvider = null;
         if (analysisExecutor != null) {
-            analysisExecutor.shutdown();
+            analysisExecutor.shutdownNow();
             analysisExecutor = null;
         }
         pendingCall = null;
