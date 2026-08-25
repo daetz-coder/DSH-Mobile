@@ -90,9 +90,14 @@ public class SecureStorePlugin extends Plugin {
             return;
         }
         try {
-            byte[] iv = randomIv();
+            // AndroidKeyStore GCM keys default to setRandomizedEncryptionRequired
+            // = true: the caller must NOT supply an IV when encrypting — the
+            // KeyStore generates a fresh random IV and we read it back via
+            // cipher.getIV(). It is then stored alongside the ciphertext and
+            // supplied explicitly on decrypt (which IS permitted).
             Cipher cipher = Cipher.getInstance(TRANSFORM);
-            cipher.init(Cipher.ENCRYPT_MODE, masterKey(), new GCMParameterSpec(GCM_TAG_BITS, iv));
+            cipher.init(Cipher.ENCRYPT_MODE, masterKey());
+            byte[] iv = cipher.getIV();
             byte[] ct = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
             byte[] payload = new byte[iv.length + ct.length];
             System.arraycopy(iv, 0, payload, 0, iv.length);
@@ -129,12 +134,6 @@ public class SecureStorePlugin extends Plugin {
     /** SharedPreferences keys allow a narrow charset; derive a stable safe key. */
     private String sanitize(String key) {
         return "v." + Integer.toHexString(key.hashCode());
-    }
-
-    private byte[] randomIv() {
-        byte[] iv = new byte[GCM_IV_BYTES];
-        new java.security.SecureRandom().nextBytes(iv);
-        return iv;
     }
 
     private SecretKey masterKey() throws Exception {
