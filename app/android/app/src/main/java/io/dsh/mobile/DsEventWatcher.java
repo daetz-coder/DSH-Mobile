@@ -62,11 +62,23 @@ public class DsEventWatcher {
     private long activeSince = 0L;
     private long lastActivityAt = 0L;
     private long idleDisplayMs = 0L;
+    // DSH's authoritative active-duration (from sessionStats: llm+decode+tool ms)
+    private long authoritativeMs = 0L;
+    private long lastStatsAt = 0L;
     private final Runnable ticker = this::tick;
 
     private static final Pattern ACTIVITY = Pattern.compile(
             "\"(?:type|method)\"\\s*:\\s*\"(?:(?:session/)?event|tool/call|tool/result|step/start|step/end|assistant/(?:chunk|message)|session/jobs)\"",
             Pattern.DOTALL);
+    // DSH's own "turn finished" signal (one generation round done).
+    private static final Pattern FINISH = Pattern.compile(
+            "\"type\"\\s*:\\s*\"finish\"[^}]*\"reason\"\\s*:\\s*\\{\"kind\"\\s*:\\s*\"(|tool-calls|stop)\"",
+            Pattern.DOTALL);
+    // Authority: sessionStats projection carries DSH-computed durations.
+    private static final Pattern STATS_LLM = Pattern.compile("\"llmMs\"\\s*:\\s*(\\d+)");
+    private static final Pattern STATS_TOOL = Pattern.compile("\"toolMs\"\\s*:\\s*(\\d+)");
+    private static final Pattern STATS_DECODE = Pattern.compile("\"decodeMs\"\\s*:\\s*(\\d+)");
+    private static final Pattern STATS_TURNS = Pattern.compile("\"turns\"\\s*:\\s*(\\d+)");
     private static final Pattern APPROVAL_SIGNAL = Pattern.compile(
             "\"(?:type|method)\"\\s*:\\s*\"(?:user[-/])?(question|approval|permission)(?:_?[a-z]*)?\"",
             Pattern.DOTALL);
@@ -243,9 +255,26 @@ public class DsEventWatcher {
     private void handleFrame(String text) {
         if (text == null || text.isEmpty()) return;
 
-        // Activity → mark the agent as working (feeds the persistent status).
-        if (ACTIVITY.matcher(text).find()) {
+        // Authority: reuse DSH's own sessionStats durations so the notification
+        // shows the same elapsed time as the app UI (not our own clock).
+        if (text.contains("sessionStats") || text.contains("\"llmMs\"")) {
+            long llm = firstLong(STATS_LLM, text);
+            long tool = firstLong(STATS_TOOL, text);
+            long decode = firstLong(STATS_DECODE, text);
+            if (llm > 0 || tool > 0 || decode > 0) {
+                authoritativeMs = llm + decode + tool; // DSH-computed active ms
+                lastStatsAt = System.currentTimeMillis();
+            }
+        }
+
+        // DSH's own "turn finished" signal → the agent wrapped up this round.
+        boolean finished = FINISH.matcher(text).find();
+
+        // Progress activity → mark working (DSH keeps computing stats).
+        if (ACTIVITY.matcher(text).find() && !finished) {
             markActivity();
+        } else if (finished) {
+            markIdle();
         }
 
         // HITL → transient popup only when the human must act.
@@ -258,6 +287,14 @@ public class DsEventWatcher {
         }
     }
 
+    private long firstLong(Pattern p, String s) {
+        Matcher m = p.matcher(s);
+        if (m.find()) {
+            try { return Long.parseLong(m.group(1)); } catch (Exception e) { /* ignore */ }
+        }
+        return 0L;
+    }
+
     private void markActivity() {
         main.post(() -> {
             long now = System.currentTimeMillis();
@@ -267,7 +304,20 @@ public class DsEventWatcher {
                 activeSince = now;
                 notifyStatus("working", null);
                 scheduleTick();
+            } else {
+                // keep refreshing while DSH reports more work
+                notifyStatus("working", null);
+                scheduleTick();
             }
+        });
+    }
+
+    private void markIdle() {
+        main.post(() -> {
+            if (!active) return;
+            active = false;
+            idleDisplayMs = Math.max(idleDisplayMs, authoritativeMs > 0 ? authoritativeMs : (System.currentTimeMillis() - activeSince));
+            notifyStatus("idle", null);
         });
     }
 
@@ -283,15 +333,17 @@ public class DsEventWatcher {
         main.postDelayed(ticker, TICK_MS);
     }
 
-    /** Runs every second: refresh elapsed time; flip to idle when quiet. */
+    /** Runs every second: refresh elapsed time; flip to idle when DSH stops. */
     private void tick() {
         if (!running) return;
         long now = System.currentTimeMillis();
         if (active) {
-            if (now - lastActivityAt > IDLE_MS) {
-                // went quiet → the current activity finished
-                idleDisplayMs = now - activeSince;
+            // DSH authoritative durations advancing OR recent activity → still working.
+            long lastMs = authoritativeMs;
+            boolean dshStillAdvancing = (lastMs > 0 && now - lastStatsAt < 2000);
+            if (!dshStillAdvancing && now - lastActivityAt > IDLE_MS) {
                 active = false;
+                idleDisplayMs = Math.max(idleDisplayMs, lastMs > 0 ? lastMs : (now - activeSince));
                 notifyStatus("idle", null);
                 return;
             }
@@ -304,13 +356,14 @@ public class DsEventWatcher {
     private void notifyStatus(String state, String extraLabel) {
         final String title;
         final String text;
-        long now = System.currentTimeMillis();
         if ("connected".equals(state)) {
             title = "DSH 已连接";
             text = "正在接收电脑上的 Harness 状态…";
         } else if ("working".equals(state)) {
+            // Reuse DSH's own computed active time so it matches the app UI.
+            long ms = authoritativeMs > 0 ? authoritativeMs : (System.currentTimeMillis() - activeSince);
             title = "DSH 进行中";
-            text = "已运行 " + fmtDuration(now - activeSince) + (extraLabel != null ? " · " + extraLabel : "");
+            text = "已运行 " + fmtDuration(ms) + (extraLabel != null ? " · " + extraLabel : "");
         } else if ("waiting".equals(state)) {
             title = "DSH 等待你";
             text = extraLabel != null ? extraLabel : "需要你的输入";
