@@ -99,6 +99,12 @@ notification mirrors the desktop's native progress text second-by-second.
 Dual-licensed by component:
 
 - **App shell** (Capacitor project + native plugins in `app/`): **MIT**
-- **`plugins/dsh-pocket`** (vendored upstream, forked/derived): **GPL-2.0** —
-  modifications/distribution must stay GPL-2.0 with the copyright notice
-- **`plugins/dsh-web-mobile`** (vendored upstream): **MIT**
+- **`plugins/dsh-pocket`** ([shaobeichen/dsh-pocket](https://github.com/shaobeichen/dsh-pocket),
+  vendored upstream, forked/derived): **GPL-2.0** — modifications/distribution
+  must stay GPL-2.0 with the copyright notice
+- **`plugins/dsh-web-mobile`** ([mexiaosqwq/dsh-web-mobile](https://github.com/mexiaosqwq/dsh-web-mobile),
+  vendored upstream): **MIT**
+
+Built with [Capacitor](https://capacitorjs.com) (MIT) and the official
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
+See [UPSTREAM.md](UPSTREAM.md) for the exact vendored versions.

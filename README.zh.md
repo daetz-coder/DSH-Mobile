@@ -95,6 +95,11 @@ Web 界面的**安卓原生配套 App**。用二维码与电脑端 `dsh web` 配
 按组件双许可：
 
 - **App 壳**（`app/` 的 Capacitor 工程 + 自研原生插件）：**MIT**
-- **`plugins/dsh-pocket`**（二开上游）：**GPL-2.0**——修改/分发必须保持
-  GPL-2.0 并保留版权声明
-- **`plugins/dsh-web-mobile`**（二开上游）：**MIT**
+- **`plugins/dsh-pocket`**（[shaobeichen/dsh-pocket](https://github.com/shaobeichen/dsh-pocket)
+  二开上游）：**GPL-2.0**——修改/分发必须保持 GPL-2.0 并保留版权声明
+- **`plugins/dsh-web-mobile`**（[mexiaosqwq/dsh-web-mobile](https://github.com/mexiaosqwq/dsh-web-mobile)
+  二开上游）：**MIT**
+
+基于 [Capacitor](https://capacitorjs.com)（MIT）与官方
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 构建。
+具体二开版本见 [UPSTREAM.md](UPSTREAM.md)。
