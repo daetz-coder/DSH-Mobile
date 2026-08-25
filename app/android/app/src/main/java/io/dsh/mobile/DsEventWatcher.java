@@ -209,11 +209,12 @@ public class DsEventWatcher {
     }
 
     private void handleFrame(String text) {
-        if (text == null || !text.contains("session/event")) return;
+        if (text == null || text.isEmpty()) return;
 
-        // Notify ONLY when the agent needs the human: a permission/approval
-        // request, an ask/question tool call, or an event type in the
-        // user-question/approval family. Everything else stays silent.
+        // Notify ONLY when the agent needs the human. Check the WHOLE frame
+        // (top-level method like "approval/request" OR nested session/event),
+        // because approval frames are NOT wrapped in "session/event" — the old
+        // contains("session/event") guard silently dropped them.
         if (isPermissionRequest(text)) {
             notify("DSH 需要审批", "Agent 请求一项需要你批准的操作");
         } else if (isAskUserTool(text)) {
@@ -223,37 +224,37 @@ public class DsEventWatcher {
         }
     }
 
-    // user-question / approval event-type family (e.g. "user/question/...",
-    // "question/request", "approval/request", "permission/request")
-    private static final Pattern QUESTION_EVENT = Pattern.compile(
-            "\"type\":\\s*\"((?:user[-/])?question|approval|permission)[^\"]*\"",
+    // approval/permission/question family — matches BOTH the top-level method
+    // ("approval/request", "permission/request", "user/question/...") and the
+    // nested event type, wherever they appear.
+    private static final Pattern APPROVAL_SIGNAL = Pattern.compile(
+            "\"(?:type|method)\"\\s*:\\s*\"(?:user[-/])?(question|approval|permission)[^\"]*\"",
             Pattern.DOTALL);
 
-    private static final Pattern PERMISSION_HINT = Pattern.compile(
-            "\"type\":\\s*\"tool/call\".*?\"(?:name|card|kind)\":\\s*\"(permission|approval|request|grant|allow)([^\"]*)\"",
+    // escalation/consent signals (e.g. tool view kind "permission")
+    private static final Pattern CONSENT_SIGNAL = Pattern.compile(
+            "\"(?:name|card|kind)\"\\s*:\\s*\"(permission|approval|consent|escalat)(e|ion)?\"",
             Pattern.DOTALL);
+
     private static final Pattern ASK_TOOL = Pattern.compile(
-            "\"type\":\\s*\"tool/call\".*?\"name\":\\s*\"([^\"]*(?:ask|question|input)[^\"]*)\"",
+            "\"name\"\\s*:\\s*\"([^\"]*(?:ask|question|input|prompt)[^\"]*)\"",
             Pattern.DOTALL);
 
     private boolean isPermissionRequest(String text) {
-        if (text.contains("\"type\":\"tool/call\"") || text.contains("\"type\": \"tool/call\"")) {
-            if (PERMISSION_HINT.matcher(text).find()) return true;
-            if (text.matches("(?s).*\"(name|card|kind)\"\\s*:\\s*\"(permission|approval)\".*")) return true;
-        }
-        return false;
+        if (APPROVAL_SIGNAL.matcher(text).find()) return true;
+        return CONSENT_SIGNAL.matcher(text).find();
     }
 
     private boolean isAskUserTool(String text) {
-        if (!(text.contains("\"type\":\"tool/call\"") || text.contains("\"type\": \"tool/call\""))) return false;
         Matcher m = ASK_TOOL.matcher(text);
         if (!m.find()) return false;
         String name = m.group(1).toLowerCase(Locale.ROOT);
-        return name.contains("ask") || name.contains("question") || name.contains("input");
+        return name.contains("ask") || name.contains("question") || name.contains("input")
+                || name.contains("prompt");
     }
 
     private boolean isQuestionEvent(String text) {
-        return QUESTION_EVENT.matcher(text).find();
+        return APPROVAL_SIGNAL.matcher(text).find();
     }
 
     private void notify(final String title, final String body) {
