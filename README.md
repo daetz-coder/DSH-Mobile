@@ -11,6 +11,10 @@
   <a href="https://github.com/topics/dsh-plugin"><img src="https://img.shields.io/badge/dsh--plugin-community-brightgreen" alt="dsh-plugin"></a>
 </p>
 
+<p align="center">
+  <img src="assets/promo-poster.png" alt="DSH-Mobile promo poster" width="80%">
+</p>
+
 > **Pair once by QR code — then watch and control your desktop DeepSeek Harness from your phone, anywhere.**
 > 扫码配对一次，之后随时随地用手机查看/控制电脑上的 DeepSeek Harness。
 
@@ -38,17 +42,9 @@ progress text second-by-second.
 
 ## 📸 Screenshots
 
-**🖼️ Promo poster** — scan once, then watch and control your desktop harness from anywhere:
+**📱 Pairing / access view & conversation view** — scan the QR code to pair, then the official DSH interface loads full-page on your phone:
 
-![DSH-Mobile promo poster](assets/promo-poster.png)
-
-**📱 Access view** — pairing list / scanner / remote access entry (screenshot pending — drop yours at `assets/screenshots/access-view.png`):
-
-![External access view](assets/screenshots/access-view.png)
-
-**💬 Conversation view** — the official DSH interface, full-page on your phone (screenshot pending — drop yours at `assets/screenshots/chat-view.png`):
-
-![Conversation view](assets/screenshots/chat-view.png)
+![DSH-Mobile screens: access view and conversation view](assets/screens.png)
 
 > **App icon** — `assets/app-icon.png` doubles as the launcher icon in the APK build:
 
@@ -123,7 +119,7 @@ DSH-Mobile/
     android/                   Android Studio project (MainActivity, AuthBridge,
                                QrScanner, SecureStore plugins)
     www/                       shell UI: pairing list / QR scanner / remote views, zh-en i18n
-  assets/                      promo poster, app icon, screenshots (access view + chat view)
+  assets/                      promo poster, app icon, phone screenshots (merged screens.png)
   plugins/
     dsh-pocket/                vendored upstream: reverse proxy + PIN gate (GPL-2.0, link-installed)
     dsh-web-mobile/            vendored upstream: mobile page adaptation (MIT, link-installed)
