@@ -49,20 +49,14 @@
     </main>
   </section>
 
-  <!-- ============ View: remote (embedded DSH web UI) ============ -->
+  <!-- ============ View: remote (embedded DSH web UI, immersive) ============ -->
   <section id="view-remote" class="view">
-    <header class="remote-bar">
-      <button id="btn-back" class="btn icon" type="button" title="Back to pairings">‹</button>
-      <div class="remote-url" id="remote-url" title=""></div>
-      <button id="btn-reload" class="btn icon" type="button" title="Reload">⟳</button>
-      <button id="btn-disconnect" class="btn icon" type="button" title="Disconnect">✕</button>
-    </header>
+    <!-- No visible chrome: the DSH UI fills the screen like a native app.
+         Exit via the Android back button (see app.js backButton listener),
+         or the small overlay affordance shown during load. -->
     <div class="remote-host">
-      <!-- Pairs only with user-added URLS (surfaced by dsh-pocket's own PIN
-           gate). Sandbox would block the dsh-pocket POST login form in some
-           WebViews (cross-origin subframe navigation restrictions), so the
-           frame loads un-sandboxed; the shell itself remains isolated. -->
       <iframe id="remote-frame"></iframe>
+      <button id="btn-remote-exit" class="remote-exit" type="button" title="Back to pairings">‹</button>
     </div>
   </section>
 

@@ -84,13 +84,7 @@ async function renderList() {
     });
 
     li.append(main, del);
-    li.addEventListener('click', () => {
-      if (item.pin) {
-        openRemote(item.id, item.url);
-      } else {
-        openRemoteWithPinPrompt(item.id, item.url);
-      }
-    });
+    li.addEventListener('click', () => openRemote(item.id, item.url));
     list.append(li);
   }
 }
@@ -224,34 +218,52 @@ function authBridge() {
   return typeof window !== 'undefined' ? (window.__DSH_MOBILE_AUTH || null) : null;
 }
 
+/**
+ * Resolve how to reach the pairing: probe whether the origin sits behind the
+ * dsh-pocket PIN gate, and obtain a session token when it does.
+ * Returns { targetUrl, authRequired, authFailed }.
+ */
+async function resolveTarget(url, pin) {
+  const bridge = authBridge();
+  if (!bridge) return { targetUrl: url, authRequired: false, authFailed: false };
+  try {
+    const probe = await bridge.check(url);
+    console.log('[dsh-mobile] probe:', JSON.stringify(probe));
+    if (!probe.protected) return { targetUrl: url, authRequired: false, authFailed: false };
+    if (!pin) return { targetUrl: url, authRequired: true, authFailed: false };
+    const res = await bridge.login(url, pin);
+    console.log('[dsh-mobile] auth login:', JSON.stringify({ ok: res.ok, status: res.status, hasToken: !!res.token }));
+    if (res.ok && res.token) {
+      const targetUrl = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(res.token);
+      return { targetUrl, authRequired: true, authFailed: false };
+    }
+    return { targetUrl: url, authRequired: true, authFailed: true };
+  } catch (err) {
+    console.error('[dsh-mobile] auth probe failed', err);
+    return { targetUrl: url, authRequired: false, authFailed: false };
+  }
+}
+
 async function openRemote(id, url, opts = {}) {
   const items = await store.loadAll();
   const entry = items.find((e) => e.id === id);
   const pin = entry && entry.pin ? entry.pin : (opts.pin || null);
 
-  let targetUrl = url;
-  const bridge = authBridge();
-  if (bridge && pin) {
-    try {
-      const res = await bridge.login(url, pin);
-      console.log('[dsh-mobile] auth login:', JSON.stringify({ ok: res.ok, status: res.status, hasToken: !!res.token }));
-      if (res.ok && res.token) {
-        // URL-parameter auth form: dsh-pocket accepts
-        // ?token=<sha256(PIN:sessionKey)> — sidesteps iframe cookie plumbing.
-        targetUrl = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(res.token);
-      }
-    } catch (err) {
-      console.error('[dsh-mobile] auth login failed', err);
-    }
+  const { targetUrl, authRequired, authFailed } = await resolveTarget(url, pin);
+  if (authRequired && !pin) {
+    // PIN is needed but we don't have it — prompt first.
+    openRemoteWithPinPrompt(id, url);
+    return;
   }
 
   activePairingId = id;
-  $('remote-url').textContent = url;
-  $('remote-url').title = url;
   const frame = $('remote-frame');
   frame.src = targetUrl;
   showView('remote');
   store.touchPairing(id);
+  if (authFailed) {
+    toast('PIN login failed — reconnect or retry', true);
+  }
 }
 
 /** Ask the user for this pairing's PIN, save it, then open remote. */
@@ -294,38 +306,34 @@ $('btn-pin-ok').addEventListener('click', async () => {
 
 $('btn-pin-cancel').addEventListener('click', () => $('dlg-pin').close());
 
-$('btn-back').addEventListener('click', () => {
-  const frame = $('remote-frame');
-  frame.src = 'about:blank';
-  activePairingId = null;
-  renderList();
-  showView('home');
-});
-
-$('btn-reload').addEventListener('click', async () => {
-  const frame = $('remote-frame');
-  const url = frame.src;
-  frame.src = 'about:blank';
-  const items = await store.loadAll();
-  const entry = items.find((e) => e.id === activePairingId);
-  const bridge = authBridge();
-  if (bridge && entry && entry.pin) {
-    try {
-      await bridge.login(entry.url, entry.pin);
-    } catch (err) {
-      console.error('[dsh-mobile] reload login failed', err);
-    }
-  }
-  setTimeout(() => { frame.src = url; toast('Reloaded'); }, 60);
-});
-
-$('btn-disconnect').addEventListener('click', () => {
+/** Leave the remote view back to the pairing list. */
+function exitRemote() {
   $('remote-frame').src = 'about:blank';
   activePairingId = null;
   renderList();
   showView('home');
-  toast('Disconnected');
-});
+}
+
+$('btn-remote-exit').addEventListener('click', exitRemote);
+
+/* ---------------- Android back button ----------------
+   Native-app feel: in the remote view the system back returns to the
+   pairing list; anywhere else it exits the app (Capacitor default). */
+(function initBackButton() {
+  const cap = typeof window !== 'undefined' ? (window.Capacitor || null) : null;
+  const appPlugin = cap && cap.Plugins && cap.Plugins.App;
+  if (!appPlugin) return; // plain browser preview: no back handling
+  // Capacitor 8 addListener returns a listener handle object, NOT a promise —
+  // errors surface via the ('backButton') event only.
+  appPlugin.addListener('backButton', (info) => {
+    const remoteActive = views.remote.classList.contains('active');
+    if (remoteActive) {
+      // Intercept: go back to pairings instead of exiting the app.
+      exitRemote();
+    }
+    // Otherwise leave default behaviour (minimize/exit).
+  });
+})();
 
 /* ---------------- init ---------------- */
 

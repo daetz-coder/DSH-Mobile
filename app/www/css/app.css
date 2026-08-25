@@ -163,28 +163,7 @@ body { overflow: hidden; }
 .row { display: flex; gap: 10px; }
 .row .btn { flex: 1; }
 
-/* ---------- remote view ---------- */
-.remote-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-2);
-}
-.remote-url {
-  flex: 1;
-  min-width: 0;
-  font-size: 12px;
-  color: var(--text-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 8px 12px;
-}
+/* ---------- remote view (immersive) ---------- */
 .remote-host {
   flex: 1;
   position: relative;
@@ -197,6 +176,27 @@ body { overflow: hidden; }
   height: 100%;
   border: none;
 }
+/* Minimal exit affordance: translucent pill, bottom-left, fades on tap of
+   content; gives a native-app back path besides the Android back button. */
+.remote-exit {
+  position: absolute;
+  left: max(12px, var(--safe-left, 12px));
+  top: max(12px, var(--safe-top));
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(22, 27, 34, 0.55);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 10;
+  opacity: 0.65;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.remote-exit:active { opacity: 1; }
 
 /* ---------- dialog ---------- */
 .dlg {
