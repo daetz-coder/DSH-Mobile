@@ -55,7 +55,11 @@ public class SecureStorePlugin extends Plugin {
             call.reject("missing key");
             return;
         }
+        // Read from the new SHA-256-based key; fall back to the legacy
+        // hashCode-based key so pairings stored before the digest switch
+        // are not lost.
         String cipherB64 = prefs().getString(sanitize(key), null);
+        if (cipherB64 == null) cipherB64 = prefs().getString(legacyKey(key), null);
         if (cipherB64 == null) {
             JSObject ret = new JSObject();
             ret.put("value", JSONObject.NULL);
@@ -102,7 +106,10 @@ public class SecureStorePlugin extends Plugin {
             byte[] payload = new byte[iv.length + ct.length];
             System.arraycopy(iv, 0, payload, 0, iv.length);
             System.arraycopy(ct, 0, payload, iv.length, ct.length);
-            prefs().edit().putString(sanitize(key), Base64.encodeToString(payload, Base64.NO_WRAP)).apply();
+            prefs().edit()
+                    .putString(sanitize(key), Base64.encodeToString(payload, Base64.NO_WRAP))
+                    .remove(legacyKey(key))   // migrate away from hashCode key
+                    .apply();
             JSObject ret = new JSObject();
             ret.put("ok", true);
             call.resolve(ret);
@@ -118,7 +125,10 @@ public class SecureStorePlugin extends Plugin {
             call.reject("missing key");
             return;
         }
-        prefs().edit().remove(sanitize(key)).apply();
+        prefs().edit()
+                .remove(sanitize(key))
+                .remove(legacyKey(key))
+                .apply();
         JSObject ret = new JSObject();
         ret.put("ok", true);
         call.resolve(ret);
@@ -131,9 +141,25 @@ public class SecureStorePlugin extends Plugin {
         return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    /** SharedPreferences keys allow a narrow charset; derive a stable safe key. */
-    private String sanitize(String key) {
+    /** Legacy pre-digest key (String.hashCode). Kept for data migration. */
+    private String legacyKey(String key) {
         return "v." + Integer.toHexString(key.hashCode());
+    }
+
+    /** SharedPreferences keys allow a narrow charset; derive a stable safe key.
+     *  hashCode() collides for distinct URLs (e.g. similar pairing hosts), which
+     *  would silently overwrite another pair's entry — use a hex digest instead. */
+    private String sanitize(String key) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(key.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder("v.");
+            for (byte b : digest) sb.append(String.format(Locale.ROOT, "%02x", b));
+            return sb.toString();
+        } catch (Exception ex) {
+            // Fallback: never collide via hashCode alone; add length prefix.
+            return "v." + key.length() + "." + Integer.toHexString(key.hashCode());
+        }
     }
 
     private SecretKey masterKey() throws Exception {

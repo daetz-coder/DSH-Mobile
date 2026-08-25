@@ -128,9 +128,12 @@ public class AuthBridgePlugin extends Plugin {
         getActivity().runOnUiThread(() -> {
             try {
                 getBridge().getWebView().loadUrl(url);
-                // Start the DSH event watcher: session events (tool calls,
-                // step completions, assistant replies) become notifications.
-                startEventWatcher(url);
+                // Start the DSH event watcher AFTER navigation is requested;
+                // it is best-effort and must never break the page load.
+                try {
+                    startEventWatcher(url);
+                } catch (Exception ignored) {
+                }
                 JSObject ret = new JSObject();
                 ret.put("ok", true);
                 call.resolve(ret);

@@ -87,19 +87,31 @@ public class DsEventWatcher {
 
     public void stop() {
         running = false;
+        // interrupt() alone cannot wake a thread blocked in socket read() —
+        // close the socket too so the loop exits promptly instead of hanging
+        // until the connect/read timeout (leaking a watcher per open/exit).
+        Socket s = socket;
+        if (s != null) {
+            try { s.close(); } catch (Exception ignored) { }
+        }
         if (thread != null) thread.interrupt();
     }
+
+    private volatile Socket socket;
 
     private void loop() {
         while (running) {
             try (Socket sock = new Socket()) {
+                socket = sock;
                 android.util.Log.d(TAG, "connecting " + wsUrl);
                 sock.connect(new InetSocketAddress(hostOf(), portOf()), 5000);
                 handshake(sock);
                 android.util.Log.d(TAG, "connected, reading frames");
                 readFrames(sock);
             } catch (Exception ex) {
-                android.util.Log.w(TAG, "watch error: " + ex);
+                if (running) android.util.Log.w(TAG, "watch error: " + ex);
+            } finally {
+                socket = null;
             }
             if (!running) break;
             try { Thread.sleep(4000); } catch (InterruptedException ie) { break; }
