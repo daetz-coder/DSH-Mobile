@@ -11,19 +11,23 @@
   <section id="view-home" class="view active">
     <header class="topbar">
       <h1 class="brand">DSH Mobile</h1>
+      <div class="lang-switch" id="lang-switch" role="group" aria-label="Language" data-i18n-aria="langLabel">
+        <button type="button" data-lang="zh">中文</button>
+        <button type="button" data-lang="en">EN</button>
+      </div>
       <div class="topbar-actions">
-        <button id="btn-scan" class="btn primary" type="button">Scan QR</button>
+        <button id="btn-scan" class="btn primary" type="button" data-i18n="scanQr">Scan QR</button>
       </div>
     </header>
     <main class="content">
-      <p class="hint">
-        Pair with the DeepSeek Harness running on your computer:
-        scan the QR code shown in <b>DSH web → Settings → Plugins → Mobile access</b>
-        (dsh-pocket). Or add the URL manually.
+      <p class="hint" data-i18n-html="homeHint">
+        Pair with the DeepSeek Harness running on your computer: scan the QR code
+        shown in <b>DSH web → Settings → Plugins → Mobile access</b> (dsh-pocket).
+        Or add the URL manually.
       </p>
       <ul id="pairing-list" class="pair-list"></ul>
-      <p id="empty-list" class="empty hidden">No pairings yet. Scan a QR code to begin.</p>
-      <button id="btn-manual" class="btn ghost full" type="button">+ Add URL manually</button>
+      <p id="empty-list" class="empty hidden" data-i18n="noPairings">No pairings yet. Scan a QR code to begin.</p>
+      <button id="btn-manual" class="btn ghost full" type="button" data-i18n-prefix="addManual">+ Add URL manually</button>
     </main>
     <footer class="foot">
       <span>io.dsh.mobile · DSH-Mobile</span>
@@ -33,60 +37,56 @@
   <!-- ============ View: scan ============ -->
   <section id="view-scan" class="view">
     <header class="topbar">
-      <button id="btn-cancel-scan" class="btn" type="button">Cancel</button>
-      <h1 class="title">Scan QR code</h1>
+      <button id="btn-cancel-scan" class="btn" type="button" data-i18n="cancel">Cancel</button>
+      <h1 class="title" data-i18n="scanQrTitle">Scan QR code</h1>
       <span class="spacer"></span>
     </header>
     <main class="scan-area">
-      <p class="scan-hint">Point the camera at the QR code shown by dsh-pocket on the Harness settings page.</p>
+      <p class="scan-hint" data-i18n="scanHint">Point the camera at the QR code shown by dsh-pocket on the Harness settings page.</p>
       <div id="scan-confirm" class="scan-confirm hidden">
         <p class="scanned-url" id="scanned-url"></p>
         <div class="row">
-          <button id="btn-scan-again" class="btn" type="button">Scan again</button>
-          <button id="btn-use-url" class="btn primary" type="button">Use this address</button>
+          <button id="btn-scan-again" class="btn" type="button" data-i18n="scanAgain">Scan again</button>
+          <button id="btn-use-url" class="btn primary" type="button" data-i18n="useAddress">Use this address</button>
         </div>
       </div>
     </main>
   </section>
 
-  <!-- ============ View: remote (full-page, native-overridden) ============
-       The remote harness replaces this page entirely via
-       AuthBridgePlugin.open(); this section is only a brief loading state. -->
+  <!-- ============ View: remote (full-page, native-overridden) ============ -->
   <section id="view-remote" class="view">
     <div class="remote-host">
-      <div class="remote-loading">Opening Harness…</div>
+      <div class="remote-loading" data-i18n="opening">Opening Harness…</div>
     </div>
   </section>
 
   <!-- ============ Dialog: manual URL ============ -->
   <dialog id="dlg-manual" class="dlg">
     <form method="dialog" id="form-manual" novalidate>
-      <h2>Add Harness URL</h2>
-      <label for="input-name">Name</label>
-      <input id="input-name" type="text" placeholder="e.g. Home PC" autocomplete="off" />
-      <label for="input-url">URL</label>
-      <!-- type="url" + required would block submit in some WebViews before our
-           handler runs; keep it a plain text input and validate in JS. -->
-      <input id="input-url" type="text" inputmode="url" placeholder="http://192.168.1.10:3081 or https://xxx.trycloudflare.com" autocomplete="off" />
+      <h2 data-i18n="addHarnessUrl">Add Harness URL</h2>
+      <label for="input-name" data-i18n="name">Name</label>
+      <input id="input-name" type="text" data-i18n-ph="namePh" placeholder="e.g. Home PC" autocomplete="off" />
+      <label for="input-url" data-i18n="url">URL</label>
+      <input id="input-url" type="text" inputmode="url" data-i18n-ph="urlPh" placeholder="http://192.168.1.10:3081 or https://xxx.trycloudflare.com" autocomplete="off" />
       <p id="dlg-error" class="dlg-error hidden" role="alert"></p>
       <div class="row">
-        <button value="cancel" class="btn" type="button" id="btn-dlg-cancel">Cancel</button>
-        <button value="ok" class="btn primary" type="submit">Add</button>
+        <button value="cancel" class="btn" type="button" id="btn-dlg-cancel" data-i18n="cancel">Cancel</button>
+        <button value="ok" class="btn primary" type="submit" data-i18n="add">Add</button>
       </div>
     </form>
   </dialog>
 
-  <!-- ============ Dialog: PIN (dsh-pocket access password) ============ -->
+  <!-- ============ Dialog: PIN ============ -->
   <dialog id="dlg-pin" class="dlg">
     <form method="dialog" id="form-pin" novalidate>
-      <h2>Access PIN</h2>
-      <p class="pin-desc">This Harness is password-protected (dsh-pocket). Enter the <b>8-digit PIN</b> shown on the computer's <i>Mobile access</i> page to unlock it.</p>
+      <h2 data-i18n="accessPin">Access PIN</h2>
+      <p class="pin-desc" data-i18n-html="pinDesc">This Harness is password-protected (dsh-pocket). Enter the <b>8-digit PIN</b> shown on the computer's <i>Mobile access</i> page to unlock it.</p>
       <label for="input-pin" id="pin-url-label">Harness URL</label>
-      <input id="input-pin" type="password" inputmode="numeric" maxlength="16" placeholder="8 digits" autocomplete="one-time-code" autofocus />
+      <input id="input-pin" type="password" inputmode="numeric" maxlength="16" data-i18n-ph="pinPh" placeholder="8 digits" autocomplete="one-time-code" autofocus />
       <p id="pin-error" class="dlg-error hidden" role="alert"></p>
       <div class="row">
-        <button value="cancel" class="btn" type="button" id="btn-pin-cancel">Cancel</button>
-        <button value="ok" class="btn primary" type="button" id="btn-pin-ok">Unlock</button>
+        <button value="cancel" class="btn" type="button" id="btn-pin-cancel" data-i18n="cancel">Cancel</button>
+        <button value="ok" class="btn primary" type="button" id="btn-pin-ok" data-i18n="unlock">Unlock</button>
       </div>
     </form>
   </dialog>
@@ -95,6 +95,7 @@
   <div id="toast" class="toast" role="status"></div>
 
   <script src="js/bridge.js"></script>
+  <script type="module" src="js/i18n.js"></script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
