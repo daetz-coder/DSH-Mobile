@@ -15,6 +15,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -51,17 +52,7 @@ public class DsEventWatcher {
     private Thread thread;
     private volatile boolean running = false;
 
-    private long lastToolNotifyAt = 0;
-    private long lastStepNotifyAt = 0;
-    private static final long TOOL_THROTTLE_MS = 10000;
-    private static final long STEP_THROTTLE_MS = 20000;
-    private long lastMessageNotifyAt = 0;
-    private static final long MESSAGE_THROTTLE_MS = 15000;
-
-    private static final Pattern EVENT_TYPE = Pattern.compile(
-            "\"type\":\"(tool/call|step/end|assistant/message)\"");
-    private static final Pattern TOOL_NAME = Pattern.compile(
-            "\"name\":\"(pwsh|bash|terminal|shell|exec|cmd)[^\"]*\"");
+    private static final Pattern EVENT_MARK = Pattern.compile("\"session/event\"");
 
     public DsEventWatcher(Context context, String baseUrl, String sessionCookie) {
         this.appContext = context.getApplicationContext();
@@ -219,28 +210,48 @@ public class DsEventWatcher {
 
     private void handleFrame(String text) {
         if (text == null || !text.contains("session/event")) return;
-        Matcher tm = EVENT_TYPE.matcher(text);
-        if (!tm.find()) return;
-        String type = tm.group(1);
-        long now = System.currentTimeMillis();
 
-        if ("tool/call".equals(type)) {
-            Matcher nm = TOOL_NAME.matcher(text);
-            if (nm.find() && now - lastToolNotifyAt > TOOL_THROTTLE_MS) {
-                lastToolNotifyAt = now;
-                notify("DSH 正在执行", nm.group(1) + " 工具调用…");
-            }
-        } else if ("step/end".equals(type)) {
-            if (now - lastStepNotifyAt > STEP_THROTTLE_MS) {
-                lastStepNotifyAt = now;
-                notify("DSH 步骤完成", "Agent 完成一步工作");
-            }
-        } else if ("assistant/message".equals(type) && text.contains("\"role\":\"assistant\"")) {
-            if (now - lastMessageNotifyAt > MESSAGE_THROTTLE_MS) {
-                lastMessageNotifyAt = now;
-                notify("DSH 回复完成", "Agent 已生成一条回复");
-            }
+        // Only surface notifications when the agent needs the human:
+        //   1) a permission/approval request (tool call escalated to the user),
+        //   2) an ask-user / question tool (agent is asking the operator).
+        // Everything else (tool progress, step ends, replies) is silent so the
+        // phone is not spammed while the agent just works.
+        if (isPermissionRequest(text)) {
+            notify("DSH 需要审批", "Agent 请求一项需要你批准的操作");
+            return;
         }
+        if (isAskUserTool(text)) {
+            notify("DSH 向你提问", "Agent 正在等待你的回答");
+        }
+    }
+
+    private static final Pattern PERMISSION_HINT = Pattern.compile(
+            "\"type\":\"tool/call\".*?\"(?:name|card|kind)\":\\s*\"(permission|approval|request|grant|allow)([^\"]*)\"",
+            Pattern.DOTALL);
+    private static final Pattern ASK_TOOL = Pattern.compile(
+            "\"type\":\"tool/call\".*?\"name\":\\s*\"([^\"]*(?:ask|question|input)[^\"]*)\"",
+            Pattern.DOTALL);
+
+    private boolean isPermissionRequest(String text) {
+        // A tool call that must be approved by the user before it runs.
+        // Detect the approval/permission view on the tool call, or a tool whose
+        // own name signals authorization.
+        if (text.contains("\"type\":\"tool/call\"")) {
+            if (PERMISSION_HINT.matcher(text).find()) return true;
+            // dsh approval often surfaces as tool arguments requesting permission,
+            // or a dedicated "permission"/"approve" tool name.
+            if (text.matches("(?s).*\"(name|card|kind)\"\\s*:\\s*\"(permission|approval)\".*")) return true;
+        }
+        return false;
+    }
+
+    private boolean isAskUserTool(String text) {
+        // ask_user_question and similar HITL tools.
+        if (!text.contains("\"type\":\"tool/call\"")) return false;
+        Matcher m = ASK_TOOL.matcher(text);
+        if (!m.find()) return false;
+        String name = m.group(1).toLowerCase(Locale.ROOT);
+        return name.contains("ask") || name.contains("question") || name.contains("input");
     }
 
     private void notify(final String title, final String body) {
