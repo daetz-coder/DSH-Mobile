@@ -38,6 +38,24 @@ approval or answer is actually required.
 
 > **Desktop DSH is the cockpit; DSH-Mobile is the copilot in your pocket.**
 
+## 📸 Screenshots
+
+**🖼️ Promo poster** — scan once, then watch and control your desktop harness from anywhere:
+
+![DSH-Mobile promo poster](assets/promo-poster.png)
+
+**📱 Access view** — pairing list / scanner / remote access entry (screenshot pending — drop yours at `assets/screenshots/access-view.png`):
+
+![External access view](assets/screenshots/access-view.png)
+
+**💬 Conversation view** — the official DSH interface, full-page on your phone (screenshot pending — drop yours at `assets/screenshots/chat-view.png`):
+
+![Conversation view](assets/screenshots/chat-view.png)
+
+> **App icon** — `assets/app-icon.png` doubles as the launcher icon in the APK build:
+
+![DSH-Mobile app icon](assets/app-icon.png)
+
 ## 🖼️ Architecture
 
 ```
@@ -112,6 +130,7 @@ DSH-Mobile/
     android/                   Android Studio project (MainActivity, AuthBridge, DsEventWatcher,
                                QrScanner, SecureStore plugins)
     www/                       shell UI: pairing list / QR scanner / remote views, zh-en i18n
+  assets/                      promo poster, app icon, screenshots (access view + chat view)
   plugins/
     dsh-pocket/                vendored upstream: reverse proxy + PIN gate (GPL-2.0, link-installed)
     dsh-web-mobile/            vendored upstream: mobile page adaptation (MIT, link-installed)

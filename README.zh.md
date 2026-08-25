@@ -35,6 +35,24 @@ Web 界面的**安卓原生配套 App**。扫码与电脑端 `dsh web` 配对后
 
 > **桌面 DSH 是驾驶舱，DSH-Mobile 是口袋里的副驾。**
 
+## 📸 运行效果
+
+**🖼️ 宣传海报** —— 扫码配对一次，之后随时随地查看/控制电脑上的 DSH：
+
+![DSH-Mobile 宣传海报](assets/promo-poster.png)
+
+**📱 外部访问界面** —— 配对列表 / 扫码 / 远程入口（截图待补充，放到 `assets/screenshots/access-view.png` 即可替换）：
+
+![外部访问界面](assets/screenshots/access-view.png)
+
+**💬 对话显示界面** —— 官方 DSH 界面整页呈现在手机（截图待补充，放到 `assets/screenshots/chat-view.png` 即可替换）：
+
+![对话显示界面](assets/screenshots/chat-view.png)
+
+> **App 图标** —— `assets/app-icon.png` 同时用作 APK 构建里的启动器图标：
+
+![DSH-Mobile App 图标](assets/app-icon.png)
+
 ## 🖼️ 架构
 
 ```
@@ -101,6 +119,7 @@ DSH-Mobile/
     android/                   Android Studio 工程（MainActivity、AuthBridge、DsEventWatcher、
                                QrScanner、SecureStore 插件）
     www/                       壳界面：配对列表 / 扫码 / 远程视图，zh-en 双语
+  assets/                      宣传海报、App 图标、截图（外部访问界面 + 对话界面）
   plugins/
     dsh-pocket/                二开上游：反向代理 + PIN 门（GPL-2.0，链接安装）
     dsh-web-mobile/            二开上游：移动端页面适配（MIT，链接安装）
