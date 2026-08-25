@@ -1,5 +1,14 @@
 apply plugin: 'com.android.application'
 
+// Optional release signing: reads keystore.properties (git-ignored). When
+// absent, release builds fall back to the debug key so CI/builds still work.
+def keystoreProps = new Properties()
+def keystoreFile = rootProject.file('keystore.properties')
+if (keystoreFile.exists()) {
+    keystoreFile.withInputStream { keystoreProps.load(it) }
+}
+def hasSigning = keystoreProps.containsKey('storeFile')
+
 android {
     namespace = "io.dsh.mobile"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +25,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasSigning) {
+            release {
+                storeFile file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig hasSigning ? signingConfigs.release : signingConfigs.debug
         }
     }
 }

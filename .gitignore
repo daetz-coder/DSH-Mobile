@@ -12,6 +12,7 @@ build/
 # Capacitor / Android
 app/android/.gradle/
 app/android/local.properties
+app/android/keystore.properties
 app/android/app/build/
 app/android/build/
 *.keystore
