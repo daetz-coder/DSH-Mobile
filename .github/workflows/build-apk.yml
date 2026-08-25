@@ -31,7 +31,23 @@ jobs:
         working-directory: app
         run: npx cap sync android
 
-      - name: Build release APK (debug-signed fallback)
+      - name: Restore release keystore from secrets
+        working-directory: app/android
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_B64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_B64 }}" | base64 -d > dsh-mobile-release.keystore
+            cat > keystore.properties <<EOF
+          storeFile=../dsh-mobile-release.keystore
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.KEYSTORE_ALIAS }}
+          keyPassword=${{ secrets.KEYSTORE_KEY_PASSWORD }}
+          EOF
+            echo "keystore restored and signing configured"
+          else
+            echo "KEYSTORE_B64 not set — release will fall back to debug signing"
+          fi
+
+      - name: Build release APK (signed or debug-fallback)
         working-directory: app/android
         run: |
           chmod +x gradlew
