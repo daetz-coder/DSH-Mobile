@@ -80,19 +80,33 @@ public class MainActivity extends BridgeActivity {
                     WebView wv = getBridge().getWebView();
                     wv.post(() -> wv.evaluateJavascript(
                             "(function(){" +
-                            // Guard 1: stop overscroll chaining in page CSS.
-                            // The DSH message list scrolls inside a hash-named
-                            // inner container (e.g. .wSkVaW_scrollBody), not the
-                            // document — overscrolling past its bounds translates
-                            // the whole page view, dragging fixed headers up into
-                            // the floating status bar where taps die (OPPO).
-                            // Apply the rule to EVERY element (wildcard) because
-                            // the container class is minified/unpredictable.
-                            "if(!document.getElementById('dsh-osc-guard')){" +
-                            "var st=document.createElement('style');st.id='dsh-osc-guard';" +
-                            "st.textContent='*{overscroll-behavior:contain!important;overscroll-behavior-y:contain!important;}" +
-                            "html,body{position:static!important;overflow-y:scroll!important;-webkit-overflow-scrolling:touch;}'" +
-                            ";(document.head||document.documentElement).appendChild(st);}" +
+                            // Guard: stop overscroll chaining ONLY on elements
+                            // that actually scroll (the DSH message list lives in
+                            // a hash-named container like wSkVaW_scrollBody).
+                            // Overscrolling past its end translates the whole
+                            // page view and drags fixed headers under the
+                            // floating status bar (OPPO edge-to-edge). We mark
+                            // the real scrollers with data-dsh-osc and apply
+                            // overscroll-behavior:contain to just those — never
+                            // a wildcard rule and never repeated style-node
+                            // churn (re-inserting <style> every 2s forces full
+                            // style recalc and janks scrolling). React rebuilds
+                            // nodes, so an idempotent fan-out + a throttled
+                            // rescan on scroll keeps marking fresh elements.
+                            "if(!window.__dshOscReady){" +
+                            "window.__dshOscReady=1;" +
+                            "var old=document.getElementById('dsh-osc-guard');if(old&&!old.getAttribute('data-dsh-v2'))old.remove();" +
+                            "var css=document.createElement('style');css.id='dsh-osc-guard';css.setAttribute('data-dsh-v2','1');" +
+                            "css.textContent='[data-dsh-osc]{overscroll-behavior:contain!important;}';" +
+                            "(document.head||document.documentElement).appendChild(css);" +
+                            "var mark=function(){var n=0;document.querySelectorAll('*').forEach(function(el){" +
+                            "if(el.scrollHeight>el.clientHeight+4&&!el.hasAttribute('data-dsh-osc')){el.setAttribute('data-dsh-osc','1');n++;}});return n;};" +
+                            "window.__dshOscMark=mark;" +
+                            "var throttle=null;document.addEventListener('scroll',function(){" +
+                            "if(throttle)return;throttle=setTimeout(function(){throttle=null;mark();},600);" +
+                            "},{passive:true,capture:true});" +
+                            "mark();" +
+                            "}" +
                             "var e=document.querySelector('[class*=\"turnStatus\"]:not([class*=\"Clock\"])');" +
                             "var s=e?e.textContent.trim():'';" +
                             "return JSON.stringify({s:s});})()",
