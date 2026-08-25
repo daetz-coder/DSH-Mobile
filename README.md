@@ -43,7 +43,9 @@ notification mirrors the desktop's native progress text second-by-second.
 
 ## 📸 Screenshots
 
-![DSH-Mobile screens: access view and conversation view](assets/screens.png)
+| 📱 Access view | 💬 Conversation view |
+|---|---|
+| ![External access view](assets/home.jpg) | ![Conversation view](assets/chat.jpg) |
 
 ## 🚀 Quick start
 

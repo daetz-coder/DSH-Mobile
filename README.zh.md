@@ -41,7 +41,9 @@ Web 界面的**安卓原生配套 App**。用二维码与电脑端 `dsh web` 配
 
 ## 📸 运行效果
 
-![DSH-Mobile 运行截图：外部访问界面与对话显示界面](assets/screens.png)
+| 📱 外部访问界面 | 💬 对话显示界面 |
+|---|---|
+| ![外部访问界面](assets/home.jpg) | ![对话显示界面](assets/chat.jpg) |
 
 ## 🚀 快速开始
 

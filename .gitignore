@@ -42,3 +42,4 @@ UPSTREAM.md
 
 # Pages landing-page images are copied from assets/ by the deploy workflow
 website/*.png
+website/*.jpg

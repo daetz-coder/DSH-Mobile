@@ -25,7 +25,8 @@ jobs:
           mkdir -p website
           cp assets/app-icon.png     website/app-icon.png
           cp assets/promo-poster.png website/promo-poster.png
-          cp assets/screens.png      website/screens.png
+          cp assets/home.jpg         website/home.jpg
+          cp assets/chat.jpg         website/chat.jpg
 
       - uses: actions/configure-pages@v5
 

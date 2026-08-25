@@ -57,8 +57,10 @@
   .feat h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
   .feat p { font-size: 13.5px; color: var(--muted); }
 
-  .shots { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
-  .shots img { width: 240px; border-radius: 14px; border: 1px solid var(--divider); }
+  .shots { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; }
+  .shots figure { margin: 0; text-align: center; }
+  .shots img { width: 240px; border-radius: 14px; border: 1px solid var(--divider); display: block; }
+  .shots figcaption { margin-top: 8px; font-size: 13px; color: var(--muted); }
 
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--divider); }
@@ -110,7 +112,14 @@
   <section>
     <h2>📸 运行效果</h2>
     <div class="shots">
-      <img src="screens.png" alt="DSH-Mobile screens">
+      <figure>
+        <img src="home.jpg" alt="DSH-Mobile 外部访问界面 · access view">
+        <figcaption>外部访问界面 · Access view</figcaption>
+      </figure>
+      <figure>
+        <img src="chat.jpg" alt="DSH-Mobile 对话显示界面 · conversation view">
+        <figcaption>对话显示界面 · Conversation view</figcaption>
+      </figure>
     </div>
   </section>
 
