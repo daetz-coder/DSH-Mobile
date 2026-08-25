@@ -31,25 +31,24 @@ jobs:
         working-directory: app
         run: npx cap sync android
 
-      - name: Build debug APK
-        working-directory: app/android
-        run: |
-          chmod +x gradlew
-          ./gradlew :app:assembleDebug --no-daemon
-
       - name: Build release APK (debug-signed fallback)
         working-directory: app/android
         run: |
           chmod +x gradlew
           ./gradlew :app:assembleRelease --no-daemon
 
-      - name: Upload APK artifacts
+      - name: Rename APK to DSH-Mobile.apk
+        working-directory: app/android
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk dist/DSH-Mobile.apk
+          sha256sum dist/DSH-Mobile.apk
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: dsh-mobile-apks
-          path: |
-            app/android/app/build/outputs/apk/debug/*.apk
-            app/android/app/build/outputs/apk/release/*.apk
+          path: app/android/dist/*.apk
           if-no-files-found: error
 
   release:
