@@ -29,13 +29,60 @@ import java.util.Locale;
  * CookieManager so the iframe's next load carries the session.
  *
  * Exposed as Capacitor plugin "AuthBridge":
- *   login({ url, pin }) -> { ok: true } | reject(message)
+ *   check({ url })                -> { protected: bool, reachable: bool }
+ *   login({ url, pin })           -> { ok, status, token }
  */
 @CapacitorPlugin(name = "AuthBridge")
 public class AuthBridgePlugin extends Plugin {
 
     private static final String LOGIN_PATH = "/pocket-login";
+    private static final String VERIFY_MARK = "访问验证";
+    private static final String VERIFY_MARK_EN = "password-protected";
     private static final int TIMEOUT_MS = 10_000;
+
+    /**
+     * Probe a remote origin without authenticating: does it sit behind the
+     * dsh-pocket password gate? A GET that returns the verify page (zh/en
+     * markers) or 401 means protected; anything else (real DSH HTML/302/403
+     * from upstream) means the LAN PIN switch is off and direct access works.
+     */
+    @PluginMethod
+    public void check(PluginCall call) {
+        String url = call.getString("url");
+        if (url == null) {
+            call.reject("missing url");
+            return;
+        }
+        new Thread(() -> {
+            try {
+                String base = url.replaceAll("/+$", "");
+                URL target = new URL(base + "/");
+                HttpURLConnection conn = (HttpURLConnection) target.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(TIMEOUT_MS);
+                conn.setReadTimeout(TIMEOUT_MS);
+                conn.setInstanceFollowRedirects(false);
+                int status = conn.getResponseCode();
+                String body = status < 400 ? readBody(conn) : "";
+                boolean protectedByPin =
+                        (status == HttpURLConnection.HTTP_UNAUTHORIZED) ||
+                        (status == HttpURLConnection.HTTP_FORBIDDEN) ||
+                        (body.contains(VERIFY_MARK) || body.contains(VERIFY_MARK_EN));
+                JSObject ret = new JSObject();
+                ret.put("protected", protectedByPin);
+                ret.put("reachable", status > 0);
+                ret.put("status", status);
+                call.resolve(ret);
+                conn.disconnect();
+            } catch (Exception ex) {
+                JSObject ret = new JSObject();
+                ret.put("protected", false);
+                ret.put("reachable", false);
+                ret.put("error", String.valueOf(ex));
+                call.resolve(ret);
+            }
+        }).start();
+    }
 
     @PluginMethod
     public void login(PluginCall call) {
@@ -163,6 +210,23 @@ public class AuthBridgePlugin extends Plugin {
             return sb.toString();
         } catch (Exception ex) {
             return null;
+        }
+    }
+
+    /** Read the 2xx response body (for auth-gate detection). */
+    private String readBody(HttpURLConnection conn) {
+        try {
+            StringBuilder sb = new StringBuilder();
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(
+                    conn.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    sb.append(line);
+                }
+            }
+            return sb.toString();
+        } catch (Exception ex) {
+            return "";
         }
     }
 }
