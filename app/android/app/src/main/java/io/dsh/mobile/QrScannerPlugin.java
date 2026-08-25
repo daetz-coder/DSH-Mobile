@@ -15,6 +15,7 @@ import androidx.camera.view.PreviewView;
 import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -62,10 +63,10 @@ public class QrScannerPlugin extends Plugin {
     private long lastAnalyzeAt = 0L;
     private final android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
 
-    @PluginMethod(permission = "camera")
+    @PluginMethod
     public void scan(PluginCall call) {
         try {
-            boolean granted = getPermissionState("camera").getState() == PermissionState.GRANTED;
+            boolean granted = getPermissionState("camera") == PermissionState.GRANTED;
             if (!granted) {
                 requestPermissionForAlias("camera", call, "permissionCallback");
                 return;
@@ -78,7 +79,7 @@ public class QrScannerPlugin extends Plugin {
 
     @PermissionCallback
     private void permissionCallback(PluginCall call) {
-        boolean granted = getPermissionState("camera").getState() == PermissionState.GRANTED;
+        boolean granted = getPermissionState("camera") == PermissionState.GRANTED;
         if (!granted) {
             JSObject ret = new JSObject();
             ret.put("value", JSONObject.NULL); // treat denial as cancel
@@ -233,7 +234,13 @@ public class QrScannerPlugin extends Plugin {
                 nv21, width, height, 0, 0, width, height, false);
         BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
         MultiFormatReader reader = new MultiFormatReader();
-        return reader.decodeWithState(bitmap);
+        try {
+            return reader.decodeWithState(bitmap);
+        } catch (com.google.zxing.NotFoundException ex) {
+            return null; // no QR in this frame — keep scanning
+        } finally {
+            reader.reset();
+        }
     }
 
     private byte[] packLuminance(byte[] src, int width, int height, int rowStride, int pixelStride) {
