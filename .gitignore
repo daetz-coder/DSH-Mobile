@@ -35,3 +35,7 @@ profiles/
 *.log
 # Local Gradle distribution (extracted, not committed)
 .gradle-dist/
+
+# Internal dev records (not part of the public project)
+docs/
+UPSTREAM.md
