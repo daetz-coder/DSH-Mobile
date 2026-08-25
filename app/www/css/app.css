@@ -158,6 +158,18 @@ body { overflow: hidden; }
   border-radius: var(--dsh-radius);
 }
 .pair-item .pair-del:active { color: var(--dsh-danger); background: var(--dsh-surface-2); }
+.pair-actions { display: flex; align-items: center; gap: 2px; flex: none; }
+.pair-edit {
+  background: none;
+  border: none;
+  color: var(--dsh-text-faint);
+  font-size: 16px;
+  min-width: 40px;
+  min-height: 40px;
+  cursor: pointer;
+  border-radius: var(--dsh-radius);
+}
+.pair-edit:active { color: var(--dsh-primary); background: var(--dsh-surface-2); }
 
 .empty { color: var(--dsh-text-dim); text-align: center; padding: 28px 0; font-size: 14px; }
 

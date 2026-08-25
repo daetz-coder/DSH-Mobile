@@ -86,6 +86,17 @@ export async function removePairing(id) {
   await saveAll(items.filter((e) => e.id !== id));
 }
 
+export async function renamePairing(id, name) {
+  const items = await loadAll();
+  const hit = items.find((e) => e.id === id);
+  if (!hit) return null;
+  const clean = String(name || '').trim();
+  if (!clean) return hit;
+  hit.name = clean;
+  await saveAll(items);
+  return hit;
+}
+
 export async function setPairingPin(id, pin) {
   const items = await loadAll();
   const hit = items.find((e) => e.id === id);

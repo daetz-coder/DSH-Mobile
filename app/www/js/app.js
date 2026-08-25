@@ -78,6 +78,20 @@ async function renderList() {
 
     main.append(name, url, meta);
 
+    const actions = document.createElement('div');
+    actions.className = 'pair-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'pair-edit';
+    editBtn.type = 'button';
+    editBtn.textContent = '✎';
+    editBtn.setAttribute('aria-label', t('renamePairingTitle'));
+    editBtn.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      openRenameDialog(item);
+    });
+    actions.append(editBtn);
+
     const del = document.createElement('button');
     del.className = 'pair-del';
     del.type = 'button';
@@ -90,8 +104,9 @@ async function renderList() {
       renderList();
       toast(t('pairingRemoved'));
     });
+    actions.append(del);
 
-    li.append(status, main, del);
+    li.append(status, main, actions);
     li.addEventListener('click', () => openRemote(item.id, item.url));
     list.append(li);
 
@@ -123,6 +138,46 @@ async function probePairingStatus(item, statusEl) {
     statusEl.title = t('statusOffline');
   }
 }
+
+/* ---------------- rename pairing ---------------- */
+
+let renamingPairingId = null;
+
+function openRenameDialog(item) {
+  renamingPairingId = item.id;
+  $('input-rename').value = item.name || item.url;
+  setRenameError(null);
+  $('dlg-rename').showModal();
+  setTimeout(() => {
+    $('input-rename').focus();
+    $('input-rename').select();
+  }, 50);
+}
+
+function setRenameError(msg) {
+  const el = $('rename-error');
+  if (msg) {
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  } else {
+    el.textContent = '';
+    el.classList.add('hidden');
+  }
+}
+
+$('btn-rename-cancel').addEventListener('click', () => $('dlg-rename').close());
+
+$('btn-rename-ok').addEventListener('click', async () => {
+  const name = $('input-rename').value.trim();
+  if (!name) {
+    setRenameError(t('emptyName'));
+    return;
+  }
+  await store.renamePairing(renamingPairingId, name);
+  $('dlg-rename').close();
+  renderList();
+  toast(t('renamed'));
+});
 
 /* ---------------- manual add ---------------- */
 

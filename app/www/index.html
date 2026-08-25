@@ -91,6 +91,20 @@
     </form>
   </dialog>
 
+  <!-- ============ Dialog: rename pairing ============ -->
+  <dialog id="dlg-rename" class="dlg">
+    <form method="dialog" id="form-rename" novalidate>
+      <h2 data-i18n="renamePairingTitle">Rename pairing</h2>
+      <label for="input-rename" data-i18n="name">Name</label>
+      <input id="input-rename" type="text" autocomplete="off" />
+      <p id="rename-error" class="dlg-error hidden" role="alert"></p>
+      <div class="row">
+        <button value="cancel" class="btn" type="button" id="btn-rename-cancel" data-i18n="cancel">Cancel</button>
+        <button value="ok" class="btn primary" type="button" id="btn-rename-ok" data-i18n="save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Toast -->
   <div id="toast" class="toast" role="status"></div>
 

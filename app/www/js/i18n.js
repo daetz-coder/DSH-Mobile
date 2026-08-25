@@ -52,6 +52,10 @@ const STRINGS = {
     statusPin: '受密码保护 — 点击输入 PIN',
     lastUsed: '上次使用 ',
     removePairing: '移除配对',
+    renamePairingTitle: '重命名配对',
+    save: '保存',
+    emptyName: '名称不能为空',
+    renamed: '已重命名',
   },
   en: {
     langLabel: 'Language',
@@ -88,6 +92,10 @@ const STRINGS = {
     statusPin: 'Password-protected — tap to enter PIN',
     lastUsed: 'Last used ',
     removePairing: 'Remove pairing',
+    renamePairingTitle: 'Rename pairing',
+    save: 'Save',
+    emptyName: 'Name cannot be empty',
+    renamed: 'Renamed',
   },
 };
 
