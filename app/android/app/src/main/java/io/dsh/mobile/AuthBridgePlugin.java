@@ -128,6 +128,9 @@ public class AuthBridgePlugin extends Plugin {
         getActivity().runOnUiThread(() -> {
             try {
                 getBridge().getWebView().loadUrl(url);
+                // Start the DSH event watcher: session events (tool calls,
+                // step completions, assistant replies) become notifications.
+                startEventWatcher(url);
                 JSObject ret = new JSObject();
                 ret.put("ok", true);
                 call.resolve(ret);
@@ -142,6 +145,7 @@ public class AuthBridgePlugin extends Plugin {
     @PluginMethod
     public void exit(PluginCall call) {
         inRemote = false;
+        stopEventWatcher();
         getActivity().runOnUiThread(() -> {
             try {
                 getBridge().getWebView().loadUrl(getBridge().getLocalUrl());
@@ -152,6 +156,43 @@ public class AuthBridgePlugin extends Plugin {
                 call.reject("exit failed: " + ex);
             }
         });
+    }
+
+    /* ---------- DSH event watcher ---------- */
+
+    private DsEventWatcher watcher;
+
+    private void startEventWatcher(String url) {
+        try {
+            stopEventWatcher();
+            String base = url.replaceAll("/+$", "");
+            // Session cookie is already in the WebView store (planted by
+            // login); read it back and pass it to the watcher so the proxy
+            // authenticates the events.mux stream.
+            String cookieStr = CookieManager.getInstance().getCookie(base);
+            if (cookieStr == null || cookieStr.isEmpty()) {
+                // LAN with auth disabled — connect without a cookie.
+                cookieStr = "";
+            }
+            DsEventWatcher w = new DsEventWatcher(getContext(), base, cookieStr);
+            w.start();
+            watcher = w;
+        } catch (Exception ex) {
+            // watcher is best-effort; never break navigation
+        }
+    }
+
+    private void stopEventWatcher() {
+        if (watcher != null) {
+            watcher.stop();
+            watcher = null;
+        }
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        stopEventWatcher();
+        super.handleOnDestroy();
     }
 
     /** Query whether the WebView is currently showing a remote harness. */
