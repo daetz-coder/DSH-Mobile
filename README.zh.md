@@ -16,8 +16,7 @@
 
 **DSH-Mobile** 是官方 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness)
 Web 界面的**安卓原生配套 App**。扫码与电脑端 `dsh web` 配对后，以**整页导航**（非 iframe）
-加载官方 DSH 界面；即使关掉 App，通知栏也会**逐秒同步**桌面上的原生进度文本，
-并且**只在需要人审批/回答时**才弹 HITL 提醒——不打扰、不错过。
+加载官方 DSH 界面；即使关掉 App，通知栏也会**逐秒同步**桌面上的原生进度文本。
 
 ## ✨ 它能做什么
 
@@ -27,7 +26,6 @@ Web 界面的**安卓原生配套 App**。扫码与电脑端 `dsh web` 配对后
 | 🔐 **PIN 自动登录** | 首次输入 8 位访问密码后以 **AndroidKeyStore AES-GCM 加密**保存；配对历史重开即达，免重复扫码 |
 | 🖥️ **整页官方界面** | 远程页以 top-level 导航加载，会话 cookie / WebSocket 与桌面浏览器完全一致；窄屏适配由服务端 `dsh-web-mobile` 插件完成 |
 | 🔔 **常驻状态通知** | 通知栏逐秒同步桌面原生状态文本（`Deep diving...1分45秒`）；任务结束自动转「已完成 · 本次用时」——**不自计时，与桌面显示永远一致** |
-| 💬 **HITL 专属提醒** | 只有审批 / agent 提问等待时才弹瞬态提醒，进度事件不刷屏 |
 | 🌐 **局域网 + 公网** | 同一 WiFi 直连；外出走 cloudflared 快速隧道（URL 每次重启轮换） |
 | 🌙 **深色模式 + 双语** | 跟随 DSH 的 `data-ds-dark-theme`；App 内 zh/en 随时切换 |
 | 📶 **配对状态徽标** | 配对列表实时显示在线 / 离线 / 受密码保护（绿 / 红 / 锁） |
@@ -63,8 +61,7 @@ Web 界面的**安卓原生配套 App**。扫码与电脑端 `dsh web` 配对后
 │  ├ SecureStore (Keystore 加密)         │  │  状态文本（输入框上方）   │
 │  ├ AuthBridge (原生 PIN 登录/导航)     │  └ dsh-pocket 代理(PIN 门)  │
 │  ├ QrScanner (CameraX+ZXing, 无 GMS)   └────────────────────────────┘
-│  ├ MainActivity 状态轮询 → 常驻通知 │
-│  └ DsEventWatcher (WS) → HITL 弹窗 │
+│  └ MainActivity 状态轮询 → 常驻通知 │
 └──────────────┘
 ```
 
@@ -77,10 +74,6 @@ Web 界面的**安卓原生配套 App**。扫码与电脑端 `dsh web` 配对后
 - **状态同步**：`MainActivity` 每 2s 读取桌面页面**原生** `.Md3f7G_turnStatus`
   文本（自带计时）——通知永远镜像桌面显示，而非本地估算；连续 4 次相同文本
   = 任务结束 → 「已完成 · 本次用时 <用时>」。
-- **HITL 专属**：`DsEventWatcher`（手写最小 WebSocket 客户端）订阅
-  `/api/events.mux`，会话 cookie 由 `AuthBridgePlugin.open()` 从 CookieManager
-  运行时获取（**不硬编码**），只对 `approval/asked` / `approval/requested` /
-  ask-question 事件弹瞬态通知。
 
 ## 🚀 30 秒上手
 
@@ -116,14 +109,14 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 DSH-Mobile/
   app/                         Capacitor Android 工程（www 前端 + 原生插件）
-    android/                   Android Studio 工程（MainActivity、AuthBridge、DsEventWatcher、
+    android/                   Android Studio 工程（MainActivity、AuthBridge、
                                QrScanner、SecureStore 插件）
     www/                       壳界面：配对列表 / 扫码 / 远程视图，zh-en 双语
   assets/                      宣传海报、App 图标、截图（外部访问界面 + 对话界面）
   plugins/
     dsh-pocket/                二开上游：反向代理 + PIN 门（GPL-2.0，链接安装）
     dsh-web-mobile/            二开上游：移动端页面适配（MIT，链接安装）
-  docs/                        市场调研 / 验证记录 / 架构 / 状态+HITL 设计 / 宣传物料
+  docs/                        市场调研 / 验证记录 / 架构 / 状态通知设计 / 宣传物料
   scripts/                     构建辅助、CDP 调试、事件流观察、图标生成
   scripts/lib/pocket-auth.cjs  开发脚本运行时获取会话 cookie 的 helper（不硬编码密钥）
   .github/workflows/build-apk.yml  CI：打 tag 自动构建 debug + release APK
@@ -184,7 +177,7 @@ cd app/android
 2. **配对**：打开 App → 「扫码配对」扫二维码（同网络扫局域网码；外出先开公网隧道扫公网码）。
 3. **首次 PIN**：App 自动登录 dsh-pocket 并加密保存 8 位 PIN，之后免输。
 4. **日常**：打开 App 即官方界面——看会话、发消息、控制 agent；关掉 App，
-   常驻状态通知继续盯进度，需要你审批/回答时才弹 HITL 提醒。
+   常驻状态通知继续盯进度。
 
 ## 🔐 安全模型
 

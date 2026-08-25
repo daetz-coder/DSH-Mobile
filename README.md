@@ -19,8 +19,7 @@
 Web UI. It pairs with your desktop `dsh web` via a QR code, loads the **official
 DSH interface** full-page (not an iframe), and keeps you in the loop even when
 the app is closed: a persistent notification mirrors the desktop's native
-progress text second-by-second, and HITL alerts fire **only** when a human
-approval or answer is actually required.
+progress text second-by-second.
 
 ## ✨ What it does
 
@@ -30,7 +29,6 @@ approval or answer is actually required.
 | 🔐 **PIN auto-login** | First-time 8-digit PIN entry is handled natively and stored **encrypted** (AndroidKeyStore AES-GCM); pairing history survives app restarts |
 | 🖥️ **Full-page official UI** | The remote page is loaded as top-level navigation — session cookies and WebSockets work exactly like the desktop browser; narrow-screen adaptation is done server-side by the `dsh-web-mobile` plugin |
 | 🔔 **Live status notification** | A persistent notification mirrors the desktop's native status line (`Deep diving...1分45秒`) second-by-second; when the run ends it switches to `已完成 · 本次用时` — no self-computed timing, it always matches the desktop |
-| 💬 **HITL-only alerts** | A transient popup only when an approval / agent question is waiting — no progress-event spam |
 | 🌐 **LAN + public tunnel** | Direct connection on the same Wi-Fi; cloudflared quick tunnel for outside access (URL rotates per restart) |
 | 🌙 **Dark mode + bilingual** | Follows DSH's `data-ds-dark-theme`; zh/EN switching inside the app |
 | 📶 **Pairing status dots** | Online / offline / password-protected shown right in the pairing list (green / red / lock) |
@@ -66,8 +64,7 @@ approval or answer is actually required.
 │  ├ SecureStore (Keystore-encrypted)     │  │  native status text      │
 │  ├ AuthBridge (native PIN login/nav)    │  └ dsh-pocket proxy (PIN)  │
 │  ├ QrScanner (CameraX+ZXing, no GMS)    └────────────────────────────┘
-│  ├ MainActivity status poll → notify  │
-│  └ DsEventWatcher (WS) → HITL popups  │
+│  └ MainActivity status poll → notify  │
 └──────────────┘
 ```
 
@@ -82,10 +79,6 @@ Key design decisions:
   reads the *native* `.Md3f7G_turnStatus` text (with its own timer) — the
   notification always mirrors what the desktop shows, never a local estimate.
   4 identical reads in a row = run finished → `已完成 · 本次用时 <elapsed>`.
-- **HITL only**: `DsEventWatcher` (minimal WebSocket client) subscribes to
-  `/api/events.mux` with a cookie obtained at runtime from CookieManager
-  (**never hardcoded**) and fires transient notifications only for
-  `approval/asked`, `approval/requested` and ask-question events.
 
 ## 🚀 30-second quick start
 
@@ -127,14 +120,14 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 DSH-Mobile/
   app/                         Capacitor Android project (www frontend + native plugins)
-    android/                   Android Studio project (MainActivity, AuthBridge, DsEventWatcher,
+    android/                   Android Studio project (MainActivity, AuthBridge,
                                QrScanner, SecureStore plugins)
     www/                       shell UI: pairing list / QR scanner / remote views, zh-en i18n
   assets/                      promo poster, app icon, screenshots (access view + chat view)
   plugins/
     dsh-pocket/                vendored upstream: reverse proxy + PIN gate (GPL-2.0, link-installed)
     dsh-web-mobile/            vendored upstream: mobile page adaptation (MIT, link-installed)
-  docs/                        market research / validation logs / architecture / status+HITL design
+  docs/                        market research / validation logs / architecture / status-notification design
   scripts/                     build helpers, CDP debugging, event-stream watchers, icon gen
   scripts/lib/pocket-auth.cjs  runtime session-cookie helper for dev scripts (no hardcoded secrets)
   .github/workflows/build-apk.yml  CI: debug + release APKs on tag push
@@ -199,8 +192,7 @@ Without a keystore, release builds fall back to debug signing (fine for CI / loc
    8-digit PIN encrypted; later launches need no re-entry.
 4. **Every day**: open the app to browse sessions, send messages and control
    agents in the official UI; with the app closed, the persistent status
-   notification keeps you informed, and HITL popups wake you only when your
-   approval or answer is needed.
+   notification keeps you informed.
 
 ## 🔐 Security model
 
