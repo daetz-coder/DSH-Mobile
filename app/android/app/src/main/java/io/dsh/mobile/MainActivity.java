@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(SecureStorePlugin.class);
         registerPlugin(QrScannerPlugin.class);
+        registerPlugin(AuthBridgePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
