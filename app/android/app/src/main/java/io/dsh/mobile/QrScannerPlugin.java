@@ -142,16 +142,37 @@ public class QrScannerPlugin extends Plugin {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         overlay.addView(previewView);
 
-        // Cancel affordance (top-right, large touch target).
+        // dp→px helper: LayoutParams use raw px, but OPPO is ~3x density, so a
+        // 64px button is only ~21dp — tiny and clipped by the status bar.
+        final float density = getContext().getResources().getDisplayMetrics().density;
+        int dp = (int) Math.ceil(density);
+        int dp64 = (int) (64 * density);
+        int dp24 = (int) (24 * density);
+
+        // Reserve the system status-bar height plus a comfortable margin so the
+        // button never sits under the floating status bar (edge-to-edge), where
+        // its taps get swallowed by the system layer / drop-down gesture.
+        int statusBarInset = 0;
+        try {
+            android.view.View decor = getActivity().getWindow().getDecorView();
+            androidx.core.graphics.Insets insets = androidx.core.view.WindowInsetsCompat
+                    .toWindowInsetsCompat(decor.getRootWindowInsets())
+                    .getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars());
+            statusBarInset = insets.top;
+        } catch (Exception ignored) {
+        }
+        final int topMargin = statusBarInset + dp24 * 2;
+
+        // Cancel affordance (top-right, comfortable 48dp touch target).
         TextView cancel = new TextView(getContext());
         cancel.setText("\u2715");
         cancel.setTextSize(26f);
         cancel.setTextColor(0xFFFFFFFF);
         cancel.setBackgroundColor(0x66000000);
         cancel.setGravity(Gravity.CENTER);
-        FrameLayout.LayoutParams cancelLp = new FrameLayout.LayoutParams(64, 64);
+        FrameLayout.LayoutParams cancelLp = new FrameLayout.LayoutParams(dp64, dp64);
         cancelLp.gravity = Gravity.TOP | Gravity.END;
-        cancelLp.setMargins(0, 80, 24, 0);
+        cancelLp.setMargins(0, topMargin, dp24, 0);
         cancel.setLayoutParams(cancelLp);
         cancel.setOnClickListener(v -> finishWith(null));
         overlay.addView(cancel);
@@ -165,7 +186,7 @@ public class QrScannerPlugin extends Plugin {
         FrameLayout.LayoutParams hintLp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         hintLp.gravity = Gravity.BOTTOM;
-        hintLp.setMargins(24, 0, 24, 120);
+        hintLp.setMargins(dp24, 0, dp24, dp24 * 5);
         hint.setLayoutParams(hintLp);
         overlay.addView(hint);
 
