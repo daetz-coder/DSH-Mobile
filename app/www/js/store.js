@@ -93,10 +93,23 @@ export async function touchPairing(id) {
   await saveAll(items);
 }
 
+/**
+ * Convert full-width characters (as produced by CJK IME composition, e.g.
+ * "：" "。" "／" "http：//192。168。1。1") back to half-width so typed URLs
+ * still validate. Thin normalization is safer than rejecting the input.
+ */
+function unwidth(s) {
+  return String(s)
+    .replace(/[\uFF01-\uFF5E]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0)) // full-width ASCII
+    .replace(/\u3000/g, ' ') // ideographic space
+    .replace(/[\uFF0D\u2013\u2014]/g, '-');
+}
+
 /** Sanitize / normalize a scanned or typed URL into a usable pairing URL. */
 export function normalizeUrl(raw) {
   let s = String(raw || '').trim();
   if (!s) return null;
+  s = unwidth(s);
   // Drop fragments that break iframe loading.
   s = s.split('#')[0];
   if (!/^https?:\/\//i.test(s)) s = 'http://' + s;
