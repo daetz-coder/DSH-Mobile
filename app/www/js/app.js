@@ -439,10 +439,71 @@ $('btn-pin-cancel').addEventListener('click', () => $('dlg-pin').close());
 
 /* ---------------- init ---------------- */
 
+/** Show the app version in the footer (native metadata or package fallback). */
+async function showVersion() {
+  const el = $('app-version');
+  if (!el) return;
+  let version = '';
+  try {
+    const cap = typeof window !== 'undefined' ? (window.Capacitor || null) : null;
+    if (cap && cap.Plugins && cap.Plugins.App) {
+      const info = await cap.Plugins.App.getInfo();
+      version = info && info.version ? info.version : '';
+    }
+  } catch { /* native not ready */ }
+  if (!version) version = '0.1.0'; // package fallback for web preview
+  el.textContent = 'v' + version;
+}
+
+/**
+ * Optional update check against the GitHub Releases API. Fail-silent: no
+ * network or no repo → skip. Only nudges the user when a newer tag exists.
+ */
+async function checkForUpdates() {
+  const REPO = 'daetz-coder/DSH-Mobile';
+  try {
+    const ctrl = typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+      ? AbortSignal.timeout(6000)
+      : null;
+    const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, ctrl ? { signal: ctrl } : null);
+    if (!res.ok) return;
+    const rel = await res.json();
+    const latest = String(rel.tag_name || '').replace(/^v/i, '');
+    const cur = String((await getAppVersion()) || '0.1.0').replace(/^v/i, '');
+    if (latest && compareVersions(latest, cur) > 0) {
+      toast('DSH Mobile v' + latest + ' ' + t('updateAvailable'));
+    }
+  } catch { /* offline / no release — ignore */ }
+}
+
+async function getAppVersion() {
+  try {
+    const cap = typeof window !== 'undefined' ? (window.Capacitor || null) : null;
+    if (cap && cap.Plugins && cap.Plugins.App) {
+      const info = await cap.Plugins.App.getInfo();
+      return info && info.version ? info.version : '0.1.0';
+    }
+  } catch { /* ignore */ }
+  return '0.1.0';
+}
+
+function compareVersions(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const da = pa[i] || 0;
+    const db = pb[i] || 0;
+    if (da !== db) return da > db ? 1 : -1;
+  }
+  return 0;
+}
+
 (async function init() {
   initI18n();
   window.addEventListener('dsh:langchange', () => renderList());
   const items = await store.loadAll();
   renderList();
   console.log('[dsh-mobile] ready, pairings:', items.length, 'lang:', t('scanQr'));
+  showVersion();
+  checkForUpdates();
 })();

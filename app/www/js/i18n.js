@@ -56,6 +56,7 @@ const STRINGS = {
     save: '保存',
     emptyName: '名称不能为空',
     renamed: '已重命名',
+    updateAvailable: '更新可用，请到 GitHub Releases 下载',
   },
   en: {
     langLabel: 'Language',
@@ -96,6 +97,7 @@ const STRINGS = {
     save: 'Save',
     emptyName: 'Name cannot be empty',
     renamed: 'Renamed',
+    updateAvailable: 'update available — grab it from GitHub Releases',
   },
 };
 
