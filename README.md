@@ -49,10 +49,24 @@ notification mirrors the desktop's native progress text second-by-second.
 1. **Desktop** — install the two server-side plugins, then start `dsh web`:
 
    ```sh
+   # Option A — from the dshmarket plugin market (recommended)
+   dsh plugin --profile web add dshmarket
+   # then install inside DSH: Settings → Plugins → Market →
+   #   dsh-pocket  (shaobeichen/dsh-pocket)
+   #   dsh-web-mobile  (mexiaosqwq/dsh-web-mobile)
+
+   # Option B — direct install
    dsh plugin --profile web add dsh-pocket -w
    dsh plugin --profile web add github:mexiaosqwq/dsh-web-mobile
+
    npx @deepseek-ai/dsh web
    ```
+
+   Plugin market: [dshmarket.com](https://dshmarket.com)
+   ([dsh-pocket](https://dshmarket.com/p/shaobeichen/dsh-pocket/) ·
+   [dsh-web-mobile](https://dshmarket.com/p/mexiaosqwq/dsh-web-mobile/)).
+   Tested versions (recommended for DSH-Mobile v1.0.0): **dsh-pocket v1.13.4** ·
+   **dsh-web-mobile v2.1.1** — no other extensions are required.
 
 2. **Phone** — install DSH-Mobile (APK from [Releases](https://github.com/daetz-coder/DSH-Mobile/releases), or sideload).
 
@@ -105,6 +119,12 @@ Dual-licensed by component:
 - **`plugins/dsh-web-mobile`** ([mexiaosqwq/dsh-web-mobile](https://github.com/mexiaosqwq/dsh-web-mobile),
   vendored upstream): **MIT**
 
-Built with [Capacitor](https://capacitorjs.com) (MIT) and the official
+Build with [Capacitor](https://capacitorjs.com) (MIT) and the official
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
 See [UPSTREAM.md](UPSTREAM.md) for the exact vendored versions.
+
+> **For users installing via [dshmarket.com](https://dshmarket.com):** the two
+> plugins are governed by their own licenses — **dsh-pocket is GPL-2.0**
+> (any modified distribution must stay GPL-2.0), **dsh-web-mobile is MIT**.
+> This app (DSH-Mobile) is MIT-licensed independently; it does not impose any
+> additional license on the plugins.

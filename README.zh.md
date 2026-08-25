@@ -47,10 +47,23 @@ Web 界面的**安卓原生配套 App**。用二维码与电脑端 `dsh web` 配
 1. **电脑端** —— 安装两个服务端插件，然后启动 `dsh web`：
 
    ```sh
+   # 方式 A：从 dshmarket 插件市场安装（推荐）
+   dsh plugin --profile web add dshmarket
+   # 然后在 DSH 内安装：设置 → 插件 → 市场 →
+   #   dsh-pocket  (shaobeichen/dsh-pocket)
+   #   dsh-web-mobile  (mexiaosqwq/dsh-web-mobile)
+
+   # 方式 B：直接安装
    dsh plugin --profile web add dsh-pocket -w
    dsh plugin --profile web add github:mexiaosqwq/dsh-web-mobile
+
    npx @deepseek-ai/dsh web
    ```
+
+   插件市场：[dshmarket.com](https://dshmarket.com)（[dsh-pocket](https://dshmarket.com/p/shaobeichen/dsh-pocket/) ·
+   [dsh-web-mobile](https://dshmarket.com/p/mexiaosqwq/dsh-web-mobile/)）。
+   已测试推荐版本（DSH-Mobile v1.0.0 下）：**dsh-pocket v1.13.4** ·
+   **dsh-web-mobile v2.1.1** —— 无需安装其他扩展即可使用。
 
 2. **手机端** —— 安装 DSH-Mobile（[Releases](https://github.com/daetz-coder/DSH-Mobile/releases)
    下载 APK，或直接侧载）。
@@ -103,3 +116,8 @@ Web 界面的**安卓原生配套 App**。用二维码与电脑端 `dsh web` 配
 基于 [Capacitor](https://capacitorjs.com)（MIT）与官方
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 构建。
 具体二开版本见 [UPSTREAM.md](UPSTREAM.md)。
+
+> **通过 [dshmarket.com](https://dshmarket.com) 安装插件的用户请注意：**
+> 两个插件遵循各自协议——**dsh-pocket 为 GPL-2.0**（修改后分发必须保持
+> GPL-2.0），**dsh-web-mobile 为 MIT**。本 App（DSH-Mobile）为 MIT 独立许可，
+> 不对插件施加额外协议要求。
