@@ -32,3 +32,5 @@ Thumbs.db
 # DSH profile local data (never commit)
 profiles/
 *.log
+# Local Gradle distribution (extracted, not committed)
+.gradle-dist/
