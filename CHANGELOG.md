@@ -5,6 +5,29 @@ All notable changes to DSH-Mobile are documented here.
 
 ---
 
+## [1.0.3] — 2026-08-25
+
+### Fixed · 修复
+
+- **扫码配对稳定可用**：第二次扫码无法解码、偶现无法退出的问题——扫描状态
+  重置 + teardown 幂等化；扫码与打开远程均防重入。
+  - QR scanning is reliable across repeated scans; exit always works.
+- **配对去重**：同一 URL 重复扫码更新已有条目，不再新增重复行；存储写入
+  串行化，连续快操作不丢更新。
+  - Pairings de-duplicated by URL; store writes serialized.
+- **健壮性**：事件监听线程泄漏、登录竞态、SecureStore 键碰撞（SHA-256 +
+  旧数据迁移）、扫码关闭按钮加大且避开状态栏（edge-to-edge）。
+  - Watcher/thread leaks, login races and storage key collisions fixed.
+- **扫码按钮美化为 DSH 扁平玻璃风格**。
+  - QR close button restyled to a flat DSH glass circle.
+
+### Changed · 变更
+
+- 版本号升至 1.0.3（versionCode 4）；README / 落地页截图改为两张独立图片。
+  - Version bumped to 1.0.3 (versionCode 4).
+
+---
+
 ## [1.0.2] — 2026-08-25
 
 ### Fixed · 修复
@@ -78,6 +101,7 @@ All notable changes to DSH-Mobile are documented here.
 - **GitHub Pages 落地页 + Obtainium 自动更新源**。
   - GitHub Pages landing page and Obtainium auto-update source.
 
+[1.0.3]: https://github.com/daetz-coder/DSH-Mobile/releases/tag/v1.0.3
 [1.0.2]: https://github.com/daetz-coder/DSH-Mobile/releases/tag/v1.0.2
 [1.0.1]: https://github.com/daetz-coder/DSH-Mobile/releases/tag/v1.0.1
 [1.0.0]: https://github.com/daetz-coder/DSH-Mobile/releases/tag/v1.0.0
