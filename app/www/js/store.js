@@ -40,16 +40,37 @@ function backend() {
   return impl;
 }
 
-function now() {
-  return new Date().toISOString();
+/**
+ * Serialize reads-modify-writes so concurrent calls (e.g. two quick
+ * addPairing) can't both read the old list and clobber each other's change.
+ * Each mutation awaits the previous one, and functional updates re-read the
+ * latest list inside the queue.
+ */
+let writeQueue = Promise.resolve();
+
+function enqueueWrite(fn) {
+  const run = writeQueue.then(fn);
+  // Keep the chain alive even if a step rejects; surface the error to caller.
+  writeQueue = run.catch(() => {});
+  return run;
 }
 
-function uid() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-  return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+function normalizeEntry(e) {
+  let name = String(e.name ?? '');
+  if (!name.trim()) name = String(e.url ?? '');
+  return {
+    id: e.id || uid(),
+    name,
+    url: String(e.url ?? ''),
+    pin: e.pin != null && String(e.pin).trim() !== ''
+      ? String(e.pin).trim()
+      : undefined,
+    createdAt: e.createdAt || now(),
+    lastUsedAt: e.lastUsedAt || now(),
+  };
 }
 
-export async function loadAll() {
+async function readItems() {
   const b = backend();
   try {
     const doc = await b.get(STORE_KEY);
@@ -61,57 +82,101 @@ export async function loadAll() {
   }
 }
 
+function now() {
+  return new Date().toISOString();
+}
+
+function uid() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+}
+
+export async function loadAll() {
+  return readItems();
+}
+
 async function saveAll(items) {
   const b = backend();
   await b.set(STORE_KEY, { items });
 }
 
+/** Canonical identity of a pairing: normalized URL (case/port tolerant). */
+function canonicalOf(url) {
+  try {
+    const u = new URL(String(url).trim());
+    return u.protocol + '//' + u.host.toLowerCase() + u.pathname.replace(/\/+$/, '');
+  } catch {
+    return String(url || '').trim().toLowerCase();
+  }
+}
+
 export async function addPairing(name, url, id, pin) {
-  const items = await loadAll();
-  const entry = {
-    id: id || uid(),
-    name: name || url,
-    url,
-    pin: pin != null && String(pin).trim() !== '' ? String(pin).trim() : undefined,
-    createdAt: now(),
-    lastUsedAt: now(),
-  };
-  items.push(entry);
-  await saveAll(items);
-  return entry;
+  const norm = normalizeUrl(url) || url;
+  const canon = canonicalOf(norm);
+  return enqueueWrite(async () => {
+    const items = await readItems();
+    // De-dupe: same canonical URL re-added updates the existing entry's name
+    // / pin instead of inserting a duplicate row.
+    const existing = items.find((e) => canonicalOf(e.url) === canon);
+    if (existing) {
+      const cleanName = String(name ?? '').trim() || existing.name || norm;
+      existing.name = cleanName;
+      if (pin != null && String(pin).trim() !== '') existing.pin = String(pin).trim();
+      existing.lastUsedAt = now();
+      await saveAll(items);
+      return existing;
+    }
+    const entry = normalizeEntry({
+      name: name || norm,
+      url: norm,
+      id,
+      pin,
+    });
+    items.push(entry);
+    await saveAll(items);
+    return entry;
+  });
 }
 
 export async function removePairing(id) {
-  const items = await loadAll();
-  await saveAll(items.filter((e) => e.id !== id));
+  return enqueueWrite(async () => {
+    const items = await readItems();
+    await saveAll(items.filter((e) => e.id !== id));
+  });
 }
 
 export async function renamePairing(id, name) {
-  const items = await loadAll();
-  const hit = items.find((e) => e.id === id);
-  if (!hit) return null;
-  const clean = String(name || '').trim();
-  if (!clean) return hit;
-  hit.name = clean;
-  await saveAll(items);
-  return hit;
+  return enqueueWrite(async () => {
+    const items = await readItems();
+    const hit = items.find((e) => e.id === id);
+    if (!hit) return null;
+    const clean = String(name || '').trim();
+    if (!clean) return hit;
+    hit.name = clean;
+    await saveAll(items);
+    return hit;
+  });
 }
 
 export async function setPairingPin(id, pin) {
-  const items = await loadAll();
-  const hit = items.find((e) => e.id === id);
-  if (!hit) return null;
-  hit.pin = pin != null && String(pin).trim() !== '' ? String(pin).trim() : undefined;
-  await saveAll(items);
-  return hit;
+  return enqueueWrite(async () => {
+    const items = await readItems();
+    const hit = items.find((e) => e.id === id);
+    if (!hit) return null;
+    hit.pin = pin != null && String(pin).trim() !== '' ? String(pin).trim() : undefined;
+    await saveAll(items);
+    return hit;
+  });
 }
 
 export async function touchPairing(id) {
-  const items = await loadAll();
-  const hit = items.find((e) => e.id === id);
-  if (!hit) return;
-  hit.lastUsedAt = now();
-  await saveAll(items);
+  return enqueueWrite(async () => {
+    const items = await readItems();
+    const hit = items.find((e) => e.id === id);
+    if (!hit) return;
+    hit.lastUsedAt = now();
+    await saveAll(items);
+  });
 }
 
 /**

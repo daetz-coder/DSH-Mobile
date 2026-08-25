@@ -344,43 +344,52 @@ async function resolveTarget(url, pin) {
   }
 }
 
+/** Guard against overlapping openRemote calls (double-tap a pairing). */
+let openBusy = false;
+
 async function openRemote(id, url, opts = {}) {
-  const items = await store.loadAll();
-  const entry = items.find((e) => e.id === id);
-  const pin = entry && entry.pin ? entry.pin : (opts.pin || null);
+  if (openBusy) return;
+  openBusy = true;
+  try {
+    const items = await store.loadAll();
+    const entry = items.find((e) => e.id === id);
+    const pin = entry && entry.pin ? entry.pin : (opts.pin || null);
 
-  const { targetUrl, authRequired, authFailed } = await resolveTarget(url, pin);
-  if (authRequired && !pin) {
-    // PIN is needed but we don't have it — prompt first.
-    openRemoteWithPinPrompt(id, url);
-    return;
-  }
-
-  // Full-page navigation (AuthBridgePlugin.open): the harness becomes the
-  // top-level document so session cookies flow to every API/WS request.
-  // The shell (pairing list) is restored via the Android back button,
-  // handled natively in MainActivity.
-  activePairingId = id;
-  store.touchPairing(id);
-  const bridge = authBridge();
-  if (bridge) {
-    try {
-      const ok = await bridge.open(targetUrl);
-      console.log('[dsh-mobile] open remote:', targetUrl, 'ok:', ok);
-      // Status is now surfaced natively (MainActivity polls the DSH page's
-      // turn-status text); the shell no longer posts a duplicate "connected"
-      // notification.
-    } catch (err) {
-      console.error('[dsh-mobile] open remote failed', err);
-      toast(t('openRemoteFailed'), true);
-      renderList();
+    const { targetUrl, authRequired, authFailed } = await resolveTarget(url, pin);
+    if (authRequired && !pin) {
+      // PIN is needed but we don't have it — prompt first.
+      openRemoteWithPinPrompt(id, url);
+      return;
     }
-  } else {
-    // Plain-browser preview: whole-window navigation.
-    window.location.href = targetUrl;
-  }
-  if (authFailed) {
-    toast(t('pinUnlockFailed'), true);
+
+    // Full-page navigation (AuthBridgePlugin.open): the harness becomes the
+    // top-level document so session cookies flow to every API/WS request.
+    // The shell (pairing list) is restored via the Android back button,
+    // handled natively in MainActivity.
+    activePairingId = id;
+    store.touchPairing(id);
+    const bridge = authBridge();
+    if (bridge) {
+      try {
+        const ok = await bridge.open(targetUrl);
+        console.log('[dsh-mobile] open remote:', targetUrl, 'ok:', ok);
+        // Status is now surfaced natively (MainActivity polls the DSH page's
+        // turn-status text); the shell no longer posts a duplicate "connected"
+        // notification.
+      } catch (err) {
+        console.error('[dsh-mobile] open remote failed', err);
+        toast(t('openRemoteFailed'), true);
+        renderList();
+      }
+    } else {
+      // Plain-browser preview: whole-window navigation.
+      window.location.href = targetUrl;
+    }
+    if (authFailed) {
+      toast(t('pinUnlockFailed'), true);
+    }
+  } finally {
+    openBusy = false;
   }
 }
 
