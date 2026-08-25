@@ -378,15 +378,9 @@ async function openRemote(id, url, opts = {}) {
     try {
       const ok = await bridge.open(targetUrl);
       console.log('[dsh-mobile] open remote:', targetUrl, 'ok:', ok);
-      if (ok) {
-        // Connection established — surface a quiet system notification.
-        // (Permission prompt appears on first use, Android 13+.)
-        notify.notify({
-          title: t('connectedTitle'),
-          body: t('connectedBody'),
-          id: 1,
-        }).catch(() => {});
-      }
+      // Status is now surfaced natively (MainActivity polls the DSH page's
+      // turn-status text); the shell no longer posts a duplicate "connected"
+      // notification.
     } catch (err) {
       console.error('[dsh-mobile] open remote failed', err);
       toast(t('openRemoteFailed'), true);

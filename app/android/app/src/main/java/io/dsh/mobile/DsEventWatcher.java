@@ -21,32 +21,22 @@ import java.util.regex.Pattern;
 
 /**
  * DsEventWatcher: a read-only WebSocket client (RFC 6455) that connects to the
- * DSH harness /api/events.mux stream (via the dsh-pocket proxy) and drives a
- * persistent status notification plus occasional HITL popups.
+ * DSH harness /api/events.mux stream (via the dsh-pocket proxy) and fires a
+ * TRANSIENT popup ONLY when the human must act (approval / question / ask).
  *
- * Status notification (id STATUS_NOTIF_ID), updated as the agent works:
- *   - "working" : set when tool/step/assistant activity is seen; a 1s ticker
- *                 refreshes the elapsed duration shown in the notification.
- *   - "idle"    : set after IDLE_MS with no activity, showing the last run's
- *                 total duration ("已完成，用时 mm:ss").
- * This persistent notification means the user never has to reopen the app to
- * see whether the agent is running / how long it has been going.
+ * The persistent "DSH status" notification is NOT handled here — MainActivity
+ * periodically reads the DSH page's own rendered turn-status text (.Md3f7G_
+ * turnStatus, e.g. "Deep diving...1分45秒") so the status notification mirrors
+ * exactly what the harness UI shows, with no guessing on our side.
  *
- * HITL popups (separate transient notifications) fire only when the human
- * must act — approval/permission/question — everything else stays silent.
- *
- * Event protocol (observed live, 2026-08):
- *   {"type":"server-request","payload":{"type":"session/event",
- *     "event":{"type":"tool/call"|"step/start"|"assistant/chunk"|...}}}
- *   approval signals: session/event event.type "approval/asked"/"approval/decided"
- *   and standalone frames method "approval/requested"/"approval/resolved".
+ * Event signals observed live (2026-08):
+ *   - approval: nested session/event "approval/asked" / "approval/decided",
+ *     and standalone frames method "approval/requested" / "approval/resolved".
+ *   - question / ask-user tool: agent waiting on the operator.
  */
 public class DsEventWatcher {
 
     public static final String CHANNEL_ID = "dsh_events";
-    private static final int STATUS_NOTIF_ID = 100;
-    private static final int IDLE_MS = 8000;
-    private static final long TICK_MS = 1000;
 
     private final Context appContext;
     private final String wsUrl;
@@ -56,29 +46,8 @@ public class DsEventWatcher {
 
     private Thread thread;
     private volatile boolean running = false;
+    private int popupId = 0;
 
-    // activity clock (guarded by main thread)
-    private boolean active = false;
-    private long activeSince = 0L;
-    private long lastActivityAt = 0L;
-    private long idleDisplayMs = 0L;
-    // DSH's authoritative active-duration (from sessionStats: llm+decode+tool ms)
-    private long authoritativeMs = 0L;
-    private long lastStatsAt = 0L;
-    private final Runnable ticker = this::tick;
-
-    private static final Pattern ACTIVITY = Pattern.compile(
-            "\"(?:type|method)\"\\s*:\\s*\"(?:(?:session/)?event|tool/call|tool/result|step/start|step/end|assistant/(?:chunk|message)|session/jobs)\"",
-            Pattern.DOTALL);
-    // DSH's own "turn finished" signal (one generation round done).
-    private static final Pattern FINISH = Pattern.compile(
-            "\"type\"\\s*:\\s*\"finish\"[^}]*\"reason\"\\s*:\\s*\\{\"kind\"\\s*:\\s*\"(|tool-calls|stop)\"",
-            Pattern.DOTALL);
-    // Authority: sessionStats projection carries DSH-computed durations.
-    private static final Pattern STATS_LLM = Pattern.compile("\"llmMs\"\\s*:\\s*(\\d+)");
-    private static final Pattern STATS_TOOL = Pattern.compile("\"toolMs\"\\s*:\\s*(\\d+)");
-    private static final Pattern STATS_DECODE = Pattern.compile("\"decodeMs\"\\s*:\\s*(\\d+)");
-    private static final Pattern STATS_TURNS = Pattern.compile("\"turns\"\\s*:\\s*(\\d+)");
     private static final Pattern APPROVAL_SIGNAL = Pattern.compile(
             "\"(?:type|method)\"\\s*:\\s*\"(?:user[-/])?(question|approval|permission)(?:_?[a-z]*)?\"",
             Pattern.DOTALL);
@@ -102,8 +71,8 @@ public class DsEventWatcher {
     private void ensureChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel ch = new NotificationChannel(
-                    CHANNEL_ID, "DSH 状态", NotificationManager.IMPORTANCE_DEFAULT);
-            ch.setDescription("Agent 任务状态与审批/提问通知");
+                    CHANNEL_ID, "DSH 提醒", NotificationManager.IMPORTANCE_HIGH);
+            ch.setDescription("需要你审批或回答时提醒");
             notifier.createNotificationChannel(ch);
         }
     }
@@ -118,8 +87,6 @@ public class DsEventWatcher {
 
     public void stop() {
         running = false;
-        main.removeCallbacks(ticker);
-        notifyStatus("disconnected", null);
         if (thread != null) thread.interrupt();
     }
 
@@ -130,7 +97,6 @@ public class DsEventWatcher {
                 sock.connect(new InetSocketAddress(hostOf(), portOf()), 5000);
                 handshake(sock);
                 android.util.Log.d(TAG, "connected, reading frames");
-                onConnected();
                 readFrames(sock);
             } catch (Exception ex) {
                 android.util.Log.w(TAG, "watch error: " + ex);
@@ -138,19 +104,6 @@ public class DsEventWatcher {
             if (!running) break;
             try { Thread.sleep(4000); } catch (InterruptedException ie) { break; }
         }
-    }
-
-    private void onConnected() {
-        main.post(() -> {
-            lastActivityAt = System.currentTimeMillis();
-            // status: show "receiving" immediately so the user knows it's live
-            if (!active) {
-                active = true;
-                activeSince = System.currentTimeMillis();
-            }
-            scheduleTick();
-            notifyStatus("connected", null);
-        });
     }
 
     private String hostOf() {
@@ -254,159 +207,27 @@ public class DsEventWatcher {
 
     private void handleFrame(String text) {
         if (text == null || text.isEmpty()) return;
-
-        // Authority: reuse DSH's own sessionStats durations so the notification
-        // shows the same elapsed time as the app UI (not our own clock).
-        if (text.contains("sessionStats") || text.contains("\"llmMs\"")) {
-            long llm = firstLong(STATS_LLM, text);
-            long tool = firstLong(STATS_TOOL, text);
-            long decode = firstLong(STATS_DECODE, text);
-            if (llm > 0 || tool > 0 || decode > 0) {
-                authoritativeMs = llm + decode + tool; // DSH-computed active ms
-                lastStatsAt = System.currentTimeMillis();
-            }
-        }
-
-        // DSH's own "turn finished" signal → the agent wrapped up this round.
-        boolean finished = FINISH.matcher(text).find();
-
-        // Progress activity → mark working (DSH keeps computing stats).
-        if (ACTIVITY.matcher(text).find() && !finished) {
-            markActivity();
-        } else if (finished) {
-            markIdle();
-        }
-
-        // HITL → transient popup only when the human must act.
         if (isPermissionRequest(text)) {
-            notify("DSH 需要审批", "Agent 请求一项需要你批准的操作");
-            markAwaitingInput("等待审批中");
+            popup("DSH 需要审批", "Agent 请求一项需要你批准的操作");
         } else if (isAskUserTool(text) || isQuestionEvent(text)) {
-            notify("DSH 向你提问", "Agent 正在等待你的回答");
-            markAwaitingInput("等待你的输入");
+            popup("DSH 向你提问", "Agent 正在等待你的回答");
         }
     }
 
-    private long firstLong(Pattern p, String s) {
-        Matcher m = p.matcher(s);
-        if (m.find()) {
-            try { return Long.parseLong(m.group(1)); } catch (Exception e) { /* ignore */ }
-        }
-        return 0L;
-    }
-
-    private void markActivity() {
+    private void popup(final String title, final String body) {
         main.post(() -> {
-            long now = System.currentTimeMillis();
-            lastActivityAt = now;
-            if (!active) {
-                active = true;
-                activeSince = now;
-                notifyStatus("working", null);
-                scheduleTick();
-            } else {
-                // keep refreshing while DSH reports more work
-                notifyStatus("working", null);
-                scheduleTick();
+            try {
+                Notification n = new Notification.Builder(appContext, CHANNEL_ID)
+                        .setSmallIcon(android.R.drawable.ic_dialog_info)
+                        .setContentTitle(title)
+                        .setContentText(body)
+                        .setAutoCancel(true)
+                        .setColor(0xFF4176E6)
+                        .build();
+                notifier.notify(200 + (popupId++ % 90), n);
+            } catch (Exception ignored) {
             }
         });
-    }
-
-    private void markIdle() {
-        main.post(() -> {
-            if (!active) return;
-            active = false;
-            idleDisplayMs = Math.max(idleDisplayMs, authoritativeMs > 0 ? authoritativeMs : (System.currentTimeMillis() - activeSince));
-            notifyStatus("idle", null);
-        });
-    }
-
-    private void markAwaitingInput(final String label) {
-        main.post(() -> {
-            active = false;
-            if (label != null) notifyStatus("waiting", label);
-        });
-    }
-
-    private void scheduleTick() {
-        main.removeCallbacks(ticker);
-        main.postDelayed(ticker, TICK_MS);
-    }
-
-    /** Runs every second: refresh elapsed time; flip to idle when DSH stops. */
-    private void tick() {
-        if (!running) return;
-        long now = System.currentTimeMillis();
-        if (active) {
-            // DSH authoritative durations advancing OR recent activity → still working.
-            long lastMs = authoritativeMs;
-            boolean dshStillAdvancing = (lastMs > 0 && now - lastStatsAt < 2000);
-            if (!dshStillAdvancing && now - lastActivityAt > IDLE_MS) {
-                active = false;
-                idleDisplayMs = Math.max(idleDisplayMs, lastMs > 0 ? lastMs : (now - activeSince));
-                notifyStatus("idle", null);
-                return;
-            }
-            notifyStatus("working", null);
-            scheduleTick();
-        }
-    }
-
-    /** Renders the persistent status notification. */
-    private void notifyStatus(String state, String extraLabel) {
-        final String title;
-        final String text;
-        if ("connected".equals(state)) {
-            title = "DSH 已连接";
-            text = "正在接收电脑上的 Harness 状态…";
-        } else if ("working".equals(state)) {
-            // Reuse DSH's own computed active time so it matches the app UI.
-            long ms = authoritativeMs > 0 ? authoritativeMs : (System.currentTimeMillis() - activeSince);
-            title = "DSH 进行中";
-            text = "已运行 " + fmtDuration(ms) + (extraLabel != null ? " · " + extraLabel : "");
-        } else if ("waiting".equals(state)) {
-            title = "DSH 等待你";
-            text = extraLabel != null ? extraLabel : "需要你的输入";
-        } else if ("idle".equals(state)) {
-            title = "DSH 已完成";
-            text = "本次用时 " + fmtDuration(idleDisplayMs);
-        } else { // disconnected
-            title = "DSH 连接已断开";
-            text = "返回程序重新连接";
-        }
-        main.post(() -> showNotification(title, text, true));
-    }
-
-    private String fmtDuration(long ms) {
-        long s = ms / 1000;
-        long m = s / 60;
-        long h = m / 60;
-        if (h > 0) return String.format(Locale.ROOT, "%d:%02d:%02d", h, m % 60, s % 60);
-        return String.format(Locale.ROOT, "%d:%02d", m % 60, s % 60);
-    }
-
-    private void notify(final String title, final String body) {
-        main.post(() -> showNotification(title, body, false));
-    }
-
-    private void showNotification(String title, String text, boolean persistent) {
-        try {
-            Notification.Builder b = new Notification.Builder(appContext, CHANNEL_ID)
-                    .setSmallIcon(android.R.drawable.ic_popup_sync)
-                    .setContentTitle(title)
-                    .setContentText(text)
-                    .setColor(0xFF4176E6)
-                    .setOnlyAlertOnce(true);
-            if (persistent) {
-                b.setOngoing(true)
-                        .setContentInfo("")
-                        .setWhen(System.currentTimeMillis());
-            } else {
-                b.setAutoCancel(true);
-            }
-            notifier.notify(persistent ? STATUS_NOTIF_ID : (int) (System.currentTimeMillis() % 100000), b.build());
-        } catch (Exception ignored) {
-        }
     }
 
     private boolean isPermissionRequest(String text) {

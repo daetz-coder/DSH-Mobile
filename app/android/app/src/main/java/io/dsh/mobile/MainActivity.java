@@ -1,5 +1,9 @@
 package io.dsh.mobile;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -12,8 +16,13 @@ import com.getcapacitor.WebViewListener;
 
 public class MainActivity extends BridgeActivity {
 
+    private static final String CHANNEL_ID = "dsh_events";
+    private static final int STATUS_NOTIF_ID = 100;
+    private static final long POLL_MS = 2000;
+
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private long lastErrorToastAt = 0L;
+    private String lastStatusText = "";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -26,6 +35,78 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
+     * Native status poller: while a remote harness is open (full-page
+     * navigation), periodically inject a snippet into the DSH page to read its
+     * OWN rendered turn-status text (.Md3f7G_turnStatus, e.g. "Deep diving...
+     * 1分45秒" shown above the composer). Surfacing that exact string as a
+     * persistent notification keeps the phone in sync with the harness UI —
+     * no clock/state guessing on our side.
+     */
+    private final Runnable statusPoller = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                if (AuthBridgePlugin.isRemote()) {
+                    WebView wv = getBridge().getWebView();
+                    wv.post(() -> wv.evaluateJavascript(
+                            "(function(){var e=document.querySelector('[class*=\"turnStatus\"]:not([class*=\"Clock\"])');" +
+                            "var s=e?e.textContent.trim():'';" +
+                            "return JSON.stringify({s:s});})()",
+                            value -> {
+                                android.util.Log.d("dsh-status", "poller callback: " + value);
+                                if (value != null && !"null".equals(value) && !value.isEmpty()) {
+                                    try {
+                                        // evaluateJavascript returns the JSON *string
+                                        // literal*: "{\"s\":\"...\"}" — strip the outer
+                                        // quotes and unescape, then parse.
+                                        String json = value;
+                                        if (json.startsWith("\"") && json.endsWith("\"")) {
+                                            json = json.substring(1, json.length() - 1);
+                                            json = json.replace("\\\"", "\"").replace("\\\\", "\\");
+                                        }
+                                        org.json.JSONObject o = new org.json.JSONObject(json);
+                                        String statusText = o.optString("s", "");
+                                        android.util.Log.d("dsh-status", "poller read: '" + statusText + "'");
+                                        if (!statusText.equals(lastStatusText)) {
+                                            lastStatusText = statusText;
+                                            if (!statusText.isEmpty()) showStatus(statusText);
+                                        }
+                                    } catch (Exception ex) {
+                                        android.util.Log.w("dsh-status", "poller parse failed: " + ex + " raw=" + value);
+                                    }
+                                }
+                            }));
+                }
+            } catch (Exception ignored) {
+            } finally {
+                mainHandler.postDelayed(this, POLL_MS);
+            }
+        }
+    };
+
+    private void showStatus(String text) {
+        try {
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                NotificationChannel ch = new NotificationChannel(
+                        CHANNEL_ID, "DSH 状态", NotificationManager.IMPORTANCE_DEFAULT);
+                ch.setDescription("Agent 任务状态与审批/提问通知");
+                nm.createNotificationChannel(ch);
+            }
+            Notification n = new Notification.Builder(this, CHANNEL_ID)
+                    .setSmallIcon(android.R.drawable.ic_popup_sync)
+                    .setContentTitle("DSH 状态")
+                    .setContentText(text)
+                    .setColor(0xFF4176E6)
+                    .setOngoing(true)
+                    .setOnlyAlertOnce(true)
+                    .build();
+            nm.notify(STATUS_NOTIF_ID, n);
+        } catch (Exception ignored) {
+        }
+    }
+
+    /**
      * Native connection monitor: while the WebView shows a remote harness
      * (full-page navigation), network/HTTP failures are surfaced as native
      * toasts so the user always knows the link died, even though the pairing
@@ -33,8 +114,6 @@ public class MainActivity extends BridgeActivity {
      * shell where the user can tap the pairing again to reconnect.
      */
     private void installConnectionMonitor() {
-        // The listener is registered via the WebView's handler after
-        // onCreate so getBridge() is alive.
         try {
             getBridge().getWebView().post(() -> {
                 try {
@@ -55,12 +134,12 @@ public class MainActivity extends BridgeActivity {
                             return false;
                         }
                     });
+                    // Start the status poller once bridge is up.
+                    mainHandler.post(statusPoller);
                 } catch (Exception ignored) {
-                    // Listener hookup is best-effort.
                 }
             });
         } catch (Exception ignored) {
-            // Bridge not ready yet; monitor hookup is best-effort.
         }
     }
 
@@ -88,5 +167,11 @@ public class MainActivity extends BridgeActivity {
             return;
         }
         super.onBackPressed();
+    }
+
+    @Override
+    public void onDestroy() {
+        mainHandler.removeCallbacks(statusPoller);
+        super.onDestroy();
     }
 }
