@@ -129,6 +129,26 @@ $('form-manual').addEventListener('submit', async (ev) => {
     setDlgError(t('invalidUrl'));
     return;
   }
+
+  // Optional reachability pre-check (native probe; best-effort — never blocks
+  // saving, a laptop asleep now may be online later).
+  const bridge = authBridge();
+  if (bridge) {
+    try {
+      const probe = await bridge.check(url);
+      console.log('[dsh-mobile] pre-check:', JSON.stringify(probe));
+      if (probe.reachable && !probe.protected) {
+        // Common case, save silently below.
+      } else if (!probe.reachable) {
+        setDlgError(t('unreachableHint'));
+        return;
+      }
+      // protected: reachable but PIN-gated — save anyway; openRemote probes again.
+    } catch (err) {
+      console.error('[dsh-mobile] pre-check failed', err);
+    }
+  }
+
   try {
     const entry = await store.addPairing(name || url, url);
     console.log('[dsh-mobile] pairing saved:', entry.id, entry.url);
