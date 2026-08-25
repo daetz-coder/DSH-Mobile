@@ -251,7 +251,15 @@ $('form-manual').addEventListener('submit', async (ev) => {
 
 /* ---------------- scan ---------------- */
 
-$('btn-scan').addEventListener('click', async () => {
+// Guard against overlapping scans: if the first scan's promise is still
+// pending (camera overlay alive), a second tap would re-enter the native
+// scanner and overwrite its pending call — leaving the first promise hanging
+// and the UI stuck on the scan view with no way out.
+let scanBusy = false;
+
+async function handleScan() {
+  if (scanBusy) return;
+  scanBusy = true;
   showView('scan');
   try {
     const payload = await qr.scan();
@@ -281,35 +289,16 @@ $('btn-scan').addEventListener('click', async () => {
     toast(t('scannerError') + (err && err.message ? ': ' + err.message : ''), true);
     renderList();
     showView('home');
+  } finally {
+    scanBusy = false;
   }
-});
+}
+
+$('btn-scan').addEventListener('click', handleScan);
 
 $('btn-scan-again').addEventListener('click', async () => {
   $('scan-confirm').classList.add('hidden');
-  try {
-    const payload = await qr.scan();
-    if (!payload) {
-      renderList();
-      showView('home');
-      return;
-    }
-    const url = store.normalizeUrl(payload);
-    if (!url) {
-      toast(t('invalidUrl'), true);
-      renderList();
-      showView('home');
-      return;
-    }
-    $('scanned-url').textContent = url;
-    $('scan-confirm').classList.remove('hidden');
-    const entry = await store.addPairing(url, url);
-    $('btn-use-url').dataset.id = entry.id;
-    $('btn-use-url').dataset.url = url;
-  } catch (err) {
-    toast(t('scannerError'), true);
-    renderList();
-    showView('home');
-  }
+  await handleScan();
 });
 
 $('btn-use-url').addEventListener('click', () => {
