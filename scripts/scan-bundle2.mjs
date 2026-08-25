@@ -1,6 +1,10 @@
 // Scan DSH bundle for slash-event strings and words like question/approval/ask/consent.
+// The session cookie is obtained at runtime (never hardcoded) — see lib/pocket-auth.cjs.
+import { createRequire } from 'module';
+const { obtainCookie } = createRequire(import.meta.url)('./lib/pocket-auth.cjs');
+const cookie = await obtainCookie();
 const res = await fetch('http://192.168.95.115:3081/assets/index-C-1AiF3k.js', {
-  headers: { Cookie: 'dsh_pocket_token=741f9929ec7b13efe518dc8b81bc31d0aece274ae6ff1dbf9892274cb6e696e5' },
+  headers: { Cookie: cookie },
 });
 const t = await res.text();
 
