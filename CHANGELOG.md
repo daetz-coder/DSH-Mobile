@@ -5,6 +5,25 @@ All notable changes to DSH-Mobile are documented here.
 
 ---
 
+## [1.0.2] — 2026-08-25
+
+### Fixed · 修复
+
+- **修复对话滑动卡顿 / 无法滚动**（OPPO 等部分机型）
+  - overscroll 保护改为一次性标记真实滚动容器（`data-dsh-osc` +
+    `overscroll-behavior: contain`），不再每 2 秒重建样式规则，滚动恢复顺滑，
+    顶栏保护依旧保留。
+  - Fixed conversation scrolling jank / freeze on OPPO-like devices — the
+    guard now marks only the real scroll container once instead of rebuilding
+    CSS every poll.
+
+### Changed · 变更
+
+- 版本号升至 1.0.2（versionCode 3）。
+  - Version bumped to 1.0.2 (versionCode 3).
+
+---
+
 ## [1.0.1] — 2026-08-25
 
 ### Fixed · 修复
@@ -59,5 +78,6 @@ All notable changes to DSH-Mobile are documented here.
 - **GitHub Pages 落地页 + Obtainium 自动更新源**。
   - GitHub Pages landing page and Obtainium auto-update source.
 
+[1.0.2]: https://github.com/daetz-coder/DSH-Mobile/releases/tag/v1.0.2
 [1.0.1]: https://github.com/daetz-coder/DSH-Mobile/releases/tag/v1.0.1
 [1.0.0]: https://github.com/daetz-coder/DSH-Mobile/releases/tag/v1.0.0

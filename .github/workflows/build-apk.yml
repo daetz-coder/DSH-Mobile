@@ -74,6 +74,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: dsh-mobile-apks
@@ -83,4 +85,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: apks/**/*.apk
-          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
+          generate_release_notes: false

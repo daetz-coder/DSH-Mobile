@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/platform-Android-3ddc84" alt="平台：Android">
   <img src="https://img.shields.io/badge/Android-8%2B-3ddc84" alt="Android 8+">
   <img src="https://img.shields.io/badge/Capacitor-8-3880ff" alt="Capacitor 8">
-  <img src="https://img.shields.io/badge/version-1.0.1-blue" alt="版本 1.0.1">
+  <img src="https://img.shields.io/badge/version-1.0.2-blue" alt="版本 1.0.2">
   <img src="https://img.shields.io/badge/license-GPL--2.0%20%2F%20MIT-blue" alt="许可：GPL-2.0 / MIT">
   <a href="https://github.com/topics/dsh-plugin"><img src="https://img.shields.io/badge/dsh--plugin-community-brightgreen" alt="dsh-plugin"></a>
 </p>
@@ -63,7 +63,7 @@ Web 界面的**安卓原生配套 App**。用二维码与电脑端 `dsh web` 配
 
    插件市场：[dshmarket.com](https://dshmarket.com)（[dsh-pocket](https://dshmarket.com/p/shaobeichen/dsh-pocket/) ·
    [dsh-web-mobile](https://dshmarket.com/p/mexiaosqwq/dsh-web-mobile/)）。
-   已测试推荐版本（DSH-Mobile v1.0.1 下）：**dsh-pocket v1.13.4** ·
+   已测试推荐版本（DSH-Mobile v1.0.2 下）：**dsh-pocket v1.13.4** ·
    **dsh-web-mobile v2.1.1** —— 无需安装其他扩展即可使用。
 
 2. **手机端** —— 安装 DSH-Mobile（[Releases](https://github.com/daetz-coder/DSH-Mobile/releases)
