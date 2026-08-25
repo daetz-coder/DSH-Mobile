@@ -1,6 +1,7 @@
 package io.dsh.mobile;
 
 import android.Manifest;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -97,9 +98,25 @@ public class QrScannerPlugin extends Plugin {
             return;
         }
         pendingCall = call;
-        analysisExecutor = Executors.newSingleThreadExecutor();
-        buildOverlay();
-        setupCamera();
+        // All UI work (overlay add + camera bound) MUST run on the Android UI
+        // thread — Capacitor invokes @PluginMethod on the bridge thread, and
+        // addView there throws "Only the original thread that created a view
+        // hierarchy can touch its views" (reported as init failed).
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            initScannerUi();
+        } else {
+            mainHandler.post(this::initScannerUi);
+        }
+    }
+
+    private void initScannerUi() {
+        try {
+            analysisExecutor = Executors.newSingleThreadExecutor();
+            buildOverlay();
+            setupCamera();
+        } catch (Exception ex) {
+            finishWithError("scanner init failed: " + ex);
+        }
     }
 
     private void buildOverlay() {
