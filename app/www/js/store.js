@@ -66,12 +66,13 @@ async function saveAll(items) {
   await b.set(STORE_KEY, { items });
 }
 
-export async function addPairing(name, url, id) {
+export async function addPairing(name, url, id, pin) {
   const items = await loadAll();
   const entry = {
     id: id || uid(),
     name: name || url,
     url,
+    pin: pin != null && String(pin).trim() !== '' ? String(pin).trim() : undefined,
     createdAt: now(),
     lastUsedAt: now(),
   };
@@ -83,6 +84,15 @@ export async function addPairing(name, url, id) {
 export async function removePairing(id) {
   const items = await loadAll();
   await saveAll(items.filter((e) => e.id !== id));
+}
+
+export async function setPairingPin(id, pin) {
+  const items = await loadAll();
+  const hit = items.find((e) => e.id === id);
+  if (!hit) return null;
+  hit.pin = pin != null && String(pin).trim() !== '' ? String(pin).trim() : undefined;
+  await saveAll(items);
+  return hit;
 }
 
 export async function touchPairing(id) {

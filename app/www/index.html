@@ -58,22 +58,43 @@
       <button id="btn-disconnect" class="btn icon" type="button" title="Disconnect">✕</button>
     </header>
     <div class="remote-host">
-      <iframe id="remote-frame"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock"></iframe>
+      <!-- Pairs only with user-added URLS (surfaced by dsh-pocket's own PIN
+           gate). Sandbox would block the dsh-pocket POST login form in some
+           WebViews (cross-origin subframe navigation restrictions), so the
+           frame loads un-sandboxed; the shell itself remains isolated. -->
+      <iframe id="remote-frame"></iframe>
     </div>
   </section>
 
   <!-- ============ Dialog: manual URL ============ -->
   <dialog id="dlg-manual" class="dlg">
-    <form method="dialog" id="form-manual">
+    <form method="dialog" id="form-manual" novalidate>
       <h2>Add Harness URL</h2>
       <label for="input-name">Name</label>
       <input id="input-name" type="text" placeholder="e.g. Home PC" autocomplete="off" />
       <label for="input-url">URL</label>
-      <input id="input-url" type="url" placeholder="http://192.168.1.10:3081 or https://xxx.trycloudflare.com" autocomplete="off" />
+      <!-- type="url" + required would block submit in some WebViews before our
+           handler runs; keep it a plain text input and validate in JS. -->
+      <input id="input-url" type="text" inputmode="url" placeholder="http://192.168.1.10:3081 or https://xxx.trycloudflare.com" autocomplete="off" />
+      <p id="dlg-error" class="dlg-error hidden" role="alert"></p>
       <div class="row">
         <button value="cancel" class="btn" type="button" id="btn-dlg-cancel">Cancel</button>
         <button value="ok" class="btn primary" type="submit">Add</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ============ Dialog: PIN (dsh-pocket access password) ============ -->
+  <dialog id="dlg-pin" class="dlg">
+    <form method="dialog" id="form-pin" novalidate>
+      <h2>Access PIN</h2>
+      <p class="pin-desc">This Harness is password-protected (dsh-pocket). Enter the <b>8-digit PIN</b> shown on the computer's <i>Mobile access</i> page to unlock it.</p>
+      <label for="input-pin" id="pin-url-label">Harness URL</label>
+      <input id="input-pin" type="password" inputmode="numeric" maxlength="16" placeholder="8 digits" autocomplete="one-time-code" autofocus />
+      <p id="pin-error" class="dlg-error hidden" role="alert"></p>
+      <div class="row">
+        <button value="cancel" class="btn" type="button" id="btn-pin-cancel">Cancel</button>
+        <button value="ok" class="btn primary" type="button" id="btn-pin-ok">Unlock</button>
       </div>
     </form>
   </dialog>

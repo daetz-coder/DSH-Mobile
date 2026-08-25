@@ -35,4 +35,15 @@
       },
     };
   }
+
+  // AuthBridgePlugin registered as name "AuthBridge".
+  const auth = cap.Plugins.AuthBridge;
+  if (auth) {
+    window.__DSH_MOBILE_AUTH = {
+      async login(url, pin) {
+        const r = await auth.login({ url, pin });
+        return { ok: !!(r && r.ok), token: (r && r.token) || null, status: r && r.status };
+      },
+    };
+  }
 })();

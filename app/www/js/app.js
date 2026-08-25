@@ -84,17 +84,35 @@ async function renderList() {
     });
 
     li.append(main, del);
-    li.addEventListener('click', () => openRemote(item.id, item.url));
+    li.addEventListener('click', () => {
+      if (item.pin) {
+        openRemote(item.id, item.url);
+      } else {
+        openRemoteWithPinPrompt(item.id, item.url);
+      }
+    });
     list.append(li);
   }
 }
 
 /* ---------------- manual add ---------------- */
 
+function setDlgError(msg) {
+  const el = $('dlg-error');
+  if (msg) {
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  } else {
+    el.textContent = '';
+    el.classList.add('hidden');
+  }
+}
+
 function openManualDialog() {
   const dlg = $('dlg-manual');
   $('input-name').value = '';
   $('input-url').value = '';
+  setDlgError(null);
   dlg.showModal();
   setTimeout(() => $('input-url').focus(), 50);
 }
@@ -102,19 +120,28 @@ function openManualDialog() {
 $('btn-manual').addEventListener('click', openManualDialog);
 $('btn-dlg-cancel').addEventListener('click', () => $('dlg-manual').close());
 
+$('input-url').addEventListener('input', () => setDlgError(null));
+
 $('form-manual').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const name = $('input-name').value.trim();
   const rawUrl = $('input-url').value.trim();
+  console.log('[dsh-mobile] submit rawUrl:', JSON.stringify(rawUrl));
   const url = store.normalizeUrl(rawUrl);
   if (!url) {
-    toast('Invalid URL — expected http(s)://...', true);
+    setDlgError('Invalid URL — expected http(s)://...');
     return;
   }
-  const entry = await store.addPairing(name || url, url);
-  $('dlg-manual').close();
-  renderList();
-  openRemote(entry.id, entry.url);
+  try {
+    const entry = await store.addPairing(name || url, url);
+    console.log('[dsh-mobile] pairing saved:', entry.id, entry.url);
+    $('dlg-manual').close();
+    renderList();
+    openRemote(entry.id, entry.url);
+  } catch (err) {
+    console.error('[dsh-mobile] add failed', err);
+    setDlgError('Failed to save pairing: ' + (err && err.message ? err.message : err));
+  }
 });
 
 /* ---------------- scan ---------------- */
@@ -193,15 +220,79 @@ $('btn-cancel-scan').addEventListener('click', () => {
 
 /* ---------------- remote ---------------- */
 
-function openRemote(id, url) {
+function authBridge() {
+  return typeof window !== 'undefined' ? (window.__DSH_MOBILE_AUTH || null) : null;
+}
+
+async function openRemote(id, url, opts = {}) {
+  const items = await store.loadAll();
+  const entry = items.find((e) => e.id === id);
+  const pin = entry && entry.pin ? entry.pin : (opts.pin || null);
+
+  let targetUrl = url;
+  const bridge = authBridge();
+  if (bridge && pin) {
+    try {
+      const res = await bridge.login(url, pin);
+      console.log('[dsh-mobile] auth login:', JSON.stringify({ ok: res.ok, status: res.status, hasToken: !!res.token }));
+      if (res.ok && res.token) {
+        // URL-parameter auth form: dsh-pocket accepts
+        // ?token=<sha256(PIN:sessionKey)> — sidesteps iframe cookie plumbing.
+        targetUrl = url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(res.token);
+      }
+    } catch (err) {
+      console.error('[dsh-mobile] auth login failed', err);
+    }
+  }
+
   activePairingId = id;
   $('remote-url').textContent = url;
   $('remote-url').title = url;
   const frame = $('remote-frame');
-  frame.src = url;
+  frame.src = targetUrl;
   showView('remote');
   store.touchPairing(id);
 }
+
+/** Ask the user for this pairing's PIN, save it, then open remote. */
+async function openRemoteWithPinPrompt(id, url) {
+  const items = await store.loadAll();
+  const entry = items.find((e) => e.id === id);
+  const dlg = $('dlg-pin');
+  $('pin-url-label').textContent = entry ? entry.name || entry.url : url;
+  $('input-pin').value = entry && entry.pin ? entry.pin : '';
+  setPinError(null);
+  dlg.showModal();
+  $('btn-pin-ok').dataset.id = id;
+  $('btn-pin-ok').dataset.url = url;
+  setTimeout(() => $('input-pin').focus(), 50);
+}
+
+function setPinError(msg) {
+  const el = $('pin-error');
+  if (msg) {
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  } else {
+    el.textContent = '';
+    el.classList.add('hidden');
+  }
+}
+
+$('btn-pin-ok').addEventListener('click', async () => {
+  const id = $('btn-pin-ok').dataset.id;
+  const url = $('btn-pin-ok').dataset.url;
+  const pin = $('input-pin').value.trim();
+  if (!/^\d{4,16}$/.test(pin)) {
+    setPinError('PIN should be 4–16 digits');
+    return;
+  }
+  await store.setPairingPin(id, pin);
+  $('dlg-pin').close();
+  openRemote(id, url, { pin });
+});
+
+$('btn-pin-cancel').addEventListener('click', () => $('dlg-pin').close());
 
 $('btn-back').addEventListener('click', () => {
   const frame = $('remote-frame');
@@ -211,10 +302,20 @@ $('btn-back').addEventListener('click', () => {
   showView('home');
 });
 
-$('btn-reload').addEventListener('click', () => {
+$('btn-reload').addEventListener('click', async () => {
   const frame = $('remote-frame');
   const url = frame.src;
   frame.src = 'about:blank';
+  const items = await store.loadAll();
+  const entry = items.find((e) => e.id === activePairingId);
+  const bridge = authBridge();
+  if (bridge && entry && entry.pin) {
+    try {
+      await bridge.login(entry.url, entry.pin);
+    } catch (err) {
+      console.error('[dsh-mobile] reload login failed', err);
+    }
+  }
   setTimeout(() => { frame.src = url; toast('Reloaded'); }, 60);
 });
 
