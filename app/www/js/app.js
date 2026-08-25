@@ -55,6 +55,11 @@ async function renderList() {
     const li = document.createElement('li');
     li.className = 'pair-item';
 
+    const status = document.createElement('span');
+    status.className = 'pair-status pair-status-unknown';
+    status.title = '';
+    status.setAttribute('aria-hidden', 'true');
+
     const main = document.createElement('div');
     main.className = 'pair-main';
 
@@ -86,9 +91,36 @@ async function renderList() {
       toast(t('pairingRemoved'));
     });
 
-    li.append(main, del);
+    li.append(status, main, del);
     li.addEventListener('click', () => openRemote(item.id, item.url));
     list.append(li);
+
+    // Best-effort live status probe; updates the dot without re-rendering.
+    probePairingStatus(item, status);
+  }
+}
+
+async function probePairingStatus(item, statusEl) {
+  const bridge = authBridge();
+  if (!bridge) {
+    statusEl.className = 'pair-status pair-status-ok';
+    return;
+  }
+  try {
+    const probe = await bridge.check(item.url);
+    if (probe.protected) {
+      statusEl.className = 'pair-status pair-status-lock';
+      statusEl.title = t('statusPin');
+    } else if (probe.reachable) {
+      statusEl.className = 'pair-status pair-status-ok';
+      statusEl.title = t('statusOnline');
+    } else {
+      statusEl.className = 'pair-status pair-status-offline';
+      statusEl.title = t('statusOffline');
+    }
+  } catch {
+    statusEl.className = 'pair-status pair-status-offline';
+    statusEl.title = t('statusOffline');
   }
 }
 

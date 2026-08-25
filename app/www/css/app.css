@@ -136,6 +136,17 @@ body { overflow: hidden; }
   margin-top: 2px;
 }
 .pair-item .pair-meta { color: var(--dsh-text-faint); font-size: 11px; margin-top: 4px; }
+.pair-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  align-self: center;
+}
+.pair-status-ok { background: var(--dsh-ok); }
+.pair-status-offline { background: var(--dsh-danger); }
+.pair-status-lock { background: var(--dsh-primary); border-radius: 2px; width: 7px; height: 9px; }
+.pair-status-unknown { background: rgba(15, 17, 21, 0.25); }
 .pair-item .pair-del {
   background: none;
   border: none;
