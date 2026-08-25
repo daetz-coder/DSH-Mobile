@@ -100,7 +100,7 @@ notification mirrors the desktop's native progress text second-by-second.
 |---------|-----|
 | **Landing page** | [daetz-coder.github.io/DSH-Mobile](https://daetz-coder.github.io/DSH-Mobile/) — direct "Download APK" button |
 | **GitHub Release** | [Releases](https://github.com/daetz-coder/DSH-Mobile/releases) — `DSH-Mobile.apk` per tag (built by CI) |
-| **Obtainium** | Add `https://github.com/daetz-coder/DSH-Mobile` as an app source — it tracks GitHub Releases and auto-updates the app |
+| **Obtainium** | One-tap add: [`obtainium://app/github.com/daetz-coder/DSH-Mobile`](obtainium://app/github.com/daetz-coder/DSH-Mobile) — or add `https://github.com/daetz-coder/DSH-Mobile` as an app source; it tracks GitHub Releases and auto-updates |
 | **Sideload** | `adb install -r DSH-Mobile.apk`, or open the APK on the phone |
 | **Build from source** | see *For developers* below |
 
