@@ -36,7 +36,32 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(AuthBridgePlugin.class);
         super.onCreate(savedInstanceState);
 
+        disableWebViewOverscroll();
         installConnectionMonitor();
+    }
+
+    /**
+     * Disable the WebView-level overscroll "stretch" effect. With Android 15
+     * enforcing edge-to-edge (targetSdk 36), the status bar floats ABOVE the
+     * WebView content. On OPPO/ColorOS especially, scrolling past the top of
+     * the message list yanks the whole page view (including position:fixed
+     * headers — conversation list / background tasks) up into the status-bar
+     * region, where the system layer swallows taps. Killing overscroll removes
+     * that page-level translation at the source.
+     */
+    private void disableWebViewOverscroll() {
+        try {
+            getBridge().getWebView().post(() -> {
+                try {
+                    android.webkit.WebView wv = getBridge().getWebView();
+                    wv.setOverScrollMode(android.view.View.OVER_SCROLL_NEVER);
+                    // Belt-and-braces: also stop nested/fling scroll chaining.
+                    wv.setNestedScrollingEnabled(false);
+                } catch (Exception ignored) {
+                }
+            });
+        } catch (Exception ignored) {
+        }
     }
 
     /**
@@ -54,7 +79,17 @@ public class MainActivity extends BridgeActivity {
                 if (AuthBridgePlugin.isRemote()) {
                     WebView wv = getBridge().getWebView();
                     wv.post(() -> wv.evaluateJavascript(
-                            "(function(){var e=document.querySelector('[class*=\"turnStatus\"]:not([class*=\"Clock\"])');" +
+                            "(function(){" +
+                            // Guard 1: stop overscroll chaining in page CSS.
+                            // On edge-to-edge Android 15, overscrolling past the
+                            // top moves fixed headers under the floating status
+                            // bar where taps die (OPPO/ColorOS). This CSS forces
+                            // scroll containment instead of page translation.
+                            "if(!document.getElementById('dsh-osc-guard')){" +
+                            "var st=document.createElement('style');st.id='dsh-osc-guard';" +
+                            "st.textContent='html,body,#app,#root{overscroll-behavior-y:none!important;-webkit-overflow-scrolling:touch;}'" +
+                            ";(document.head||document.documentElement).appendChild(st);}" +
+                            "var e=document.querySelector('[class*=\"turnStatus\"]:not([class*=\"Clock\"])');" +
                             "var s=e?e.textContent.trim():'';" +
                             "return JSON.stringify({s:s});})()",
                             value -> {
