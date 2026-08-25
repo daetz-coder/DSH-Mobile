@@ -20,28 +20,33 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * DsEventWatcher: a minimal read-only WebSocket client (RFC 6455) that
- * connects to the DSH harness's /api/events.mux stream (through the
- * dsh-pocket proxy) and turns interesting session events into Android
- * notifications.
+ * DsEventWatcher: a read-only WebSocket client (RFC 6455) that connects to the
+ * DSH harness /api/events.mux stream (via the dsh-pocket proxy) and drives a
+ * persistent status notification plus occasional HITL popups.
+ *
+ * Status notification (id STATUS_NOTIF_ID), updated as the agent works:
+ *   - "working" : set when tool/step/assistant activity is seen; a 1s ticker
+ *                 refreshes the elapsed duration shown in the notification.
+ *   - "idle"    : set after IDLE_MS with no activity, showing the last run's
+ *                 total duration ("已完成，用时 mm:ss").
+ * This persistent notification means the user never has to reopen the app to
+ * see whether the agent is running / how long it has been going.
+ *
+ * HITL popups (separate transient notifications) fire only when the human
+ * must act — approval/permission/question — everything else stays silent.
  *
  * Event protocol (observed live, 2026-08):
- *   {"type":"server-request",...,"payload":{"type":"session/event",...,
- *     "event":{"type":"tool/call","name":"pwsh",...}}}
- *   event.type ∈ { assistant/chunk, assistant/message, tool/call,
- *                  tool/result, step/start, step/end, ... }
- *
- * Notification rules (quiet-first):
- *   - tool/call for a shell-like tool  -> "DSH 正在执行 <tool>…" (throttled)
- *   - step/end                         -> "DSH 步骤完成"          (throttled)
- *   - assistant/message (assistant role) -> "DSH 回复完成"
- *
- * Runs on its own thread; auto-reconnects with a small backoff. The cookie
- * comes from the WebView session so the proxy authenticates the stream.
+ *   {"type":"server-request","payload":{"type":"session/event",
+ *     "event":{"type":"tool/call"|"step/start"|"assistant/chunk"|...}}}
+ *   approval signals: session/event event.type "approval/asked"/"approval/decided"
+ *   and standalone frames method "approval/requested"/"approval/resolved".
  */
 public class DsEventWatcher {
 
     public static final String CHANNEL_ID = "dsh_events";
+    private static final int STATUS_NOTIF_ID = 100;
+    private static final int IDLE_MS = 8000;
+    private static final long TICK_MS = 1000;
 
     private final Context appContext;
     private final String wsUrl;
@@ -52,12 +57,28 @@ public class DsEventWatcher {
     private Thread thread;
     private volatile boolean running = false;
 
-    private static final Pattern EVENT_MARK = Pattern.compile("\"session/event\"");
+    // activity clock (guarded by main thread)
+    private boolean active = false;
+    private long activeSince = 0L;
+    private long lastActivityAt = 0L;
+    private long idleDisplayMs = 0L;
+    private final Runnable ticker = this::tick;
+
+    private static final Pattern ACTIVITY = Pattern.compile(
+            "\"(?:type|method)\"\\s*:\\s*\"(?:(?:session/)?event|tool/call|tool/result|step/start|step/end|assistant/(?:chunk|message)|session/jobs)\"",
+            Pattern.DOTALL);
+    private static final Pattern APPROVAL_SIGNAL = Pattern.compile(
+            "\"(?:type|method)\"\\s*:\\s*\"(?:user[-/])?(question|approval|permission)(?:_?[a-z]*)?\"",
+            Pattern.DOTALL);
+    private static final Pattern CONSENT_SIGNAL = Pattern.compile(
+            "\"(?:name|card|kind)\"\\s*:\\s*\"(permission|approval|consent|escalat)(e|ion)?\"",
+            Pattern.DOTALL);
+    private static final Pattern ASK_TOOL = Pattern.compile(
+            "\"name\"\\s*:\\s*\"([^\"]*(?:ask|question|input|prompt)[^\"]*)\"",
+            Pattern.DOTALL);
 
     public DsEventWatcher(Context context, String baseUrl, String sessionCookie) {
         this.appContext = context.getApplicationContext();
-        // baseUrl may carry a ?token= query (URL auth form); strip it and
-        // rebuild a clean ws://host:port/api/events.mux URL.
         String clean = baseUrl.replaceAll("\\?.*$", "").replaceAll("/+$", "");
         String host = clean.replaceAll("^https?://", "");
         this.wsUrl = "ws://" + host + EVENTS_PATH;
@@ -69,8 +90,8 @@ public class DsEventWatcher {
     private void ensureChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel ch = new NotificationChannel(
-                    CHANNEL_ID, "DSH 事件", NotificationManager.IMPORTANCE_DEFAULT);
-            ch.setDescription("Agent 任务进度与完成通知");
+                    CHANNEL_ID, "DSH 状态", NotificationManager.IMPORTANCE_DEFAULT);
+            ch.setDescription("Agent 任务状态与审批/提问通知");
             notifier.createNotificationChannel(ch);
         }
     }
@@ -85,6 +106,8 @@ public class DsEventWatcher {
 
     public void stop() {
         running = false;
+        main.removeCallbacks(ticker);
+        notifyStatus("disconnected", null);
         if (thread != null) thread.interrupt();
     }
 
@@ -95,6 +118,7 @@ public class DsEventWatcher {
                 sock.connect(new InetSocketAddress(hostOf(), portOf()), 5000);
                 handshake(sock);
                 android.util.Log.d(TAG, "connected, reading frames");
+                onConnected();
                 readFrames(sock);
             } catch (Exception ex) {
                 android.util.Log.w(TAG, "watch error: " + ex);
@@ -102,6 +126,19 @@ public class DsEventWatcher {
             if (!running) break;
             try { Thread.sleep(4000); } catch (InterruptedException ie) { break; }
         }
+    }
+
+    private void onConnected() {
+        main.post(() -> {
+            lastActivityAt = System.currentTimeMillis();
+            // status: show "receiving" immediately so the user knows it's live
+            if (!active) {
+                active = true;
+                activeSince = System.currentTimeMillis();
+            }
+            scheduleTick();
+            notifyStatus("connected", null);
+        });
     }
 
     private String hostOf() {
@@ -125,7 +162,6 @@ public class DsEventWatcher {
 
         String rest = wsUrl.replaceAll("^ws://", "");
         String path = "/" + rest.substring(rest.indexOf('/') + 1);
-        // strip any leftover query string
         int q = path.indexOf('?');
         if (q >= 0) path = path.substring(0, q);
 
@@ -186,9 +222,7 @@ public class DsEventWatcher {
                 continue;
             }
             byte[] mask = new byte[4];
-            if (masked) {
-                in.read(mask);
-            }
+            if (masked) in.read(mask);
             byte[] payload = new byte[(int) len];
             int off = 0;
             while (off < payload.length) {
@@ -196,9 +230,7 @@ public class DsEventWatcher {
                 if (n < 0) break;
                 off += n;
             }
-            if (masked) {
-                for (int i = 0; i < payload.length; i++) payload[i] ^= mask[i % 4];
-            }
+            if (masked) for (int i = 0; i < payload.length; i++) payload[i] ^= mask[i % 4];
             int opcode = b0 & 0x0F;
             if (opcode == 1) {
                 handleFrame(new String(payload, StandardCharsets.UTF_8));
@@ -211,38 +243,121 @@ public class DsEventWatcher {
     private void handleFrame(String text) {
         if (text == null || text.isEmpty()) return;
 
-        // Notify ONLY when the agent needs the human. Check the WHOLE frame
-        // (top-level method like "approval/request" OR nested session/event),
-        // because approval frames are NOT wrapped in "session/event" — the old
-        // contains("session/event") guard silently dropped them.
+        // Activity → mark the agent as working (feeds the persistent status).
+        if (ACTIVITY.matcher(text).find()) {
+            markActivity();
+        }
+
+        // HITL → transient popup only when the human must act.
         if (isPermissionRequest(text)) {
             notify("DSH 需要审批", "Agent 请求一项需要你批准的操作");
-        } else if (isAskUserTool(text)) {
+            markAwaitingInput("等待审批中");
+        } else if (isAskUserTool(text) || isQuestionEvent(text)) {
             notify("DSH 向你提问", "Agent 正在等待你的回答");
-        } else if (isQuestionEvent(text)) {
-            notify("DSH 向你提问", "Agent 需要你的输入");
+            markAwaitingInput("等待你的输入");
         }
     }
 
-    // approval/permission/question family — matches BOTH the top-level method
-    // ("approval/request", "permission/request", "user/question/...") and the
-    // nested event type, wherever they appear.
-    private static final Pattern APPROVAL_SIGNAL = Pattern.compile(
-            "\"(?:type|method)\"\\s*:\\s*\"(?:user[-/])?(question|approval|permission)[^\"]*\"",
-            Pattern.DOTALL);
+    private void markActivity() {
+        main.post(() -> {
+            long now = System.currentTimeMillis();
+            lastActivityAt = now;
+            if (!active) {
+                active = true;
+                activeSince = now;
+                notifyStatus("working", null);
+                scheduleTick();
+            }
+        });
+    }
 
-    // escalation/consent signals (e.g. tool view kind "permission")
-    private static final Pattern CONSENT_SIGNAL = Pattern.compile(
-            "\"(?:name|card|kind)\"\\s*:\\s*\"(permission|approval|consent|escalat)(e|ion)?\"",
-            Pattern.DOTALL);
+    private void markAwaitingInput(final String label) {
+        main.post(() -> {
+            active = false;
+            if (label != null) notifyStatus("waiting", label);
+        });
+    }
 
-    private static final Pattern ASK_TOOL = Pattern.compile(
-            "\"name\"\\s*:\\s*\"([^\"]*(?:ask|question|input|prompt)[^\"]*)\"",
-            Pattern.DOTALL);
+    private void scheduleTick() {
+        main.removeCallbacks(ticker);
+        main.postDelayed(ticker, TICK_MS);
+    }
+
+    /** Runs every second: refresh elapsed time; flip to idle when quiet. */
+    private void tick() {
+        if (!running) return;
+        long now = System.currentTimeMillis();
+        if (active) {
+            if (now - lastActivityAt > IDLE_MS) {
+                // went quiet → the current activity finished
+                idleDisplayMs = now - activeSince;
+                active = false;
+                notifyStatus("idle", null);
+                return;
+            }
+            notifyStatus("working", null);
+            scheduleTick();
+        }
+    }
+
+    /** Renders the persistent status notification. */
+    private void notifyStatus(String state, String extraLabel) {
+        final String title;
+        final String text;
+        long now = System.currentTimeMillis();
+        if ("connected".equals(state)) {
+            title = "DSH 已连接";
+            text = "正在接收电脑上的 Harness 状态…";
+        } else if ("working".equals(state)) {
+            title = "DSH 进行中";
+            text = "已运行 " + fmtDuration(now - activeSince) + (extraLabel != null ? " · " + extraLabel : "");
+        } else if ("waiting".equals(state)) {
+            title = "DSH 等待你";
+            text = extraLabel != null ? extraLabel : "需要你的输入";
+        } else if ("idle".equals(state)) {
+            title = "DSH 已完成";
+            text = "本次用时 " + fmtDuration(idleDisplayMs);
+        } else { // disconnected
+            title = "DSH 连接已断开";
+            text = "返回程序重新连接";
+        }
+        main.post(() -> showNotification(title, text, true));
+    }
+
+    private String fmtDuration(long ms) {
+        long s = ms / 1000;
+        long m = s / 60;
+        long h = m / 60;
+        if (h > 0) return String.format(Locale.ROOT, "%d:%02d:%02d", h, m % 60, s % 60);
+        return String.format(Locale.ROOT, "%d:%02d", m % 60, s % 60);
+    }
+
+    private void notify(final String title, final String body) {
+        main.post(() -> showNotification(title, body, false));
+    }
+
+    private void showNotification(String title, String text, boolean persistent) {
+        try {
+            Notification.Builder b = new Notification.Builder(appContext, CHANNEL_ID)
+                    .setSmallIcon(android.R.drawable.ic_popup_sync)
+                    .setContentTitle(title)
+                    .setContentText(text)
+                    .setColor(0xFF4176E6)
+                    .setOnlyAlertOnce(true);
+            if (persistent) {
+                b.setOngoing(true)
+                        .setContentInfo("")
+                        .setWhen(System.currentTimeMillis());
+            } else {
+                b.setAutoCancel(true);
+            }
+            notifier.notify(persistent ? STATUS_NOTIF_ID : (int) (System.currentTimeMillis() % 100000), b.build());
+        } catch (Exception ignored) {
+        }
+    }
 
     private boolean isPermissionRequest(String text) {
-        if (APPROVAL_SIGNAL.matcher(text).find()) return true;
-        return CONSENT_SIGNAL.matcher(text).find();
+        return APPROVAL_SIGNAL.matcher(text).find() || CONSENT_SIGNAL.matcher(text).find();
     }
 
     private boolean isAskUserTool(String text) {
@@ -255,22 +370,6 @@ public class DsEventWatcher {
 
     private boolean isQuestionEvent(String text) {
         return APPROVAL_SIGNAL.matcher(text).find();
-    }
-
-    private void notify(final String title, final String body) {
-        main.post(() -> {
-            try {
-                Notification n = new Notification.Builder(appContext, CHANNEL_ID)
-                        .setSmallIcon(android.R.drawable.ic_popup_sync)
-                        .setContentTitle(title)
-                        .setContentText(body)
-                        .setAutoCancel(true)
-                        .setColor(0xFF4176E6)
-                        .build();
-                notifier.notify((int) (System.currentTimeMillis() % 100000), n);
-            } catch (Exception ignored) {
-            }
-        });
     }
 
     private static final int FRAME_MAX = 256 * 1024;
