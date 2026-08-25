@@ -19,10 +19,15 @@ public class MainActivity extends BridgeActivity {
     private static final String CHANNEL_ID = "dsh_events";
     private static final int STATUS_NOTIF_ID = 100;
     private static final long POLL_MS = 2000;
+    // consecutive identical turnStatus reads (2s apart) → treat as finished
+    private static final int FREEZE_LIMIT = 4;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private long lastErrorToastAt = 0L;
     private String lastStatusText = "";
+    private boolean wasActive = false;   // saw a turnStatus while running
+    private String lastActiveText = "";  // latest non-empty turnStatus text
+    private int freezeStreak = 0;        // consecutive identical reads → run ended
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -56,9 +61,6 @@ public class MainActivity extends BridgeActivity {
                                 android.util.Log.d("dsh-status", "poller callback: " + value);
                                 if (value != null && !"null".equals(value) && !value.isEmpty()) {
                                     try {
-                                        // evaluateJavascript returns the JSON *string
-                                        // literal*: "{\"s\":\"...\"}" — strip the outer
-                                        // quotes and unescape, then parse.
                                         String json = value;
                                         if (json.startsWith("\"") && json.endsWith("\"")) {
                                             json = json.substring(1, json.length() - 1);
@@ -67,9 +69,31 @@ public class MainActivity extends BridgeActivity {
                                         org.json.JSONObject o = new org.json.JSONObject(json);
                                         String statusText = o.optString("s", "");
                                         android.util.Log.d("dsh-status", "poller read: '" + statusText + "'");
-                                        if (!statusText.equals(lastStatusText)) {
+
+                                        if (!statusText.isEmpty()) {
+                                            if (statusText.equals(lastStatusText)) {
+                                                // Same text again → DSH stopped ticking
+                                                // (finished/paused). Transition to done
+                                                // after a short stable window.
+                                                freezeStreak++;
+                                                if (wasActive && freezeStreak >= FREEZE_LIMIT) {
+                                                    wasActive = false;
+                                                    showStatus("DSH 已完成", "本次用时 " + elapsedFrom(lastActiveText));
+                                                }
+                                            } else {
+                                                // text still advancing → actively working.
+                                                wasActive = true;
+                                                freezeStreak = 0;
+                                                lastActiveText = statusText;
+                                                showStatus("DSH 进行中", statusText);
+                                            }
                                             lastStatusText = statusText;
-                                            if (!statusText.isEmpty()) showStatus(statusText);
+                                        } else if (wasActive) {
+                                            // turnStatus element gone → the run finished.
+                                            wasActive = false;
+                                            freezeStreak = 0;
+                                            lastStatusText = "";
+                                            showStatus("DSH 已完成", "本次用时 " + elapsedFrom(lastActiveText));
                                         }
                                     } catch (Exception ex) {
                                         android.util.Log.w("dsh-status", "poller parse failed: " + ex + " raw=" + value);
@@ -84,7 +108,7 @@ public class MainActivity extends BridgeActivity {
         }
     };
 
-    private void showStatus(String text) {
+    private void showStatus(String title, String text) {
         try {
             NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -95,7 +119,7 @@ public class MainActivity extends BridgeActivity {
             }
             Notification n = new Notification.Builder(this, CHANNEL_ID)
                     .setSmallIcon(android.R.drawable.ic_popup_sync)
-                    .setContentTitle("DSH 状态")
+                    .setContentTitle(title)
                     .setContentText(text)
                     .setColor(0xFF4176E6)
                     .setOngoing(true)
@@ -104,6 +128,17 @@ public class MainActivity extends BridgeActivity {
             nm.notify(STATUS_NOTIF_ID, n);
         } catch (Exception ignored) {
         }
+    }
+
+    /**
+     * Extract the elapsed-time portion from the DSH native turnStatus text,
+     * e.g. "Deep diving...1分45秒" → "1分45秒". Falls back to the whole text.
+     */
+    private String elapsedFrom(String nativeText) {
+        if (nativeText == null || nativeText.isEmpty()) return "";
+        int idx = nativeText.lastIndexOf("...");
+        if (idx >= 0) return nativeText.substring(idx + 3).trim();
+        return nativeText;
     }
 
     /**
