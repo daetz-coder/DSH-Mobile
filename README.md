@@ -42,16 +42,46 @@
   4 次读到相同文本判定任务结束 → 转「已完成 · 本次用时」。**不自计时，
   与 DSH 界面显示完全一致**。
 - **HITL 提醒**：`DsEventWatcher`（手写最小 WebSocket 客户端）订阅
-  `/api/events.mux`，当出现 `approval/asked` / `approval/requested` /
+  `/api/events.mux`（会话 cookie 由 `AuthBridgePlugin.open()` 从 CookieManager
+  读取后传入，**不硬编码**），当出现 `approval/asked` / `approval/requested` /
   ask-question 类事件时弹瞬态通知（审批/提问才打扰）。
 
-## 环境要求
+## 需要安装什么
 
-- 电脑：Node 20+，已装 `dsh`（`@deepseek-ai/dsh`），`dsh web` 运行中
-- 构建 App：JDK 21（Capacitor 8 / AGP 8.13 要求）、Android SDK（compileSdk 36）
-- 手机：Android 8+（minSdk 24）
+分三端：**电脑端**（运行 DSH + 两个插件）、**构建端**（编译 APK）、**手机端**（安装 App）。
+
+### 电脑端（被控端，必须）
+
+| 内容 | 说明 |
+|---|---|
+| Node.js 20+ | DSH 运行环境 |
+| `dsh`（`@deepseek-ai/dsh`） | DeepSeek Harness 本体，`dsh web` 启动 Web UI（127.0.0.1:3080） |
+| `dsh-pocket` 插件 | 反向代理 + PIN 门（本仓库 `plugins/dsh-pocket`，GPL-2.0） |
+| `dsh-web-mobile` 插件 | 移动端页面适配（本仓库 `plugins/dsh-web-mobile`，MIT） |
+
+> 公网隧道用的 `cloudflared` 由 dsh-pocket 在首次开启公网访问时自动下载，无需手动安装。
+
+### 构建端（编译 App，仅开发者需要）
+
+| 内容 | 说明 |
+|---|---|
+| JDK 21 | Capacitor 8 / AGP 8.13 要求（如 `~/.jdks/openjdk-21.0.1`） |
+| Android SDK | compileSdk 36（含 platform-tools / adb） |
+| Node.js + npm | `app/` 前端依赖与 `cap` 工具链 |
+
+### 手机端
+
+- Android 8+（minSdk 24）
+- 与电脑同一局域网（或电脑开启公网隧道）
 
 ## 快速开始
+
+### 使用介绍（用户视角）
+
+1. **电脑端**：装好 `dsh` + 两个插件（见下），`dsh web` 保持运行
+2. **配对**：打开手机 App → 「扫码配对」扫电脑 DSH 设置里的二维码；局域网内可直接扫，人在外面就先用电脑端「开启公网访问」再扫公网二维码
+3. **首次输入 PIN**：App 自动登录 dsh-pocket 的访问密码（8 位数字），并用 AndroidKeyStore 加密保存，之后免输
+4. **日常使用**：打开 App 即进入电脑 DSH 的官方界面——看会话、发消息、控制 agent；关掉 App 也能通过常驻通知看到电脑上的进度，需要你审批/回答时才弹提醒
 
 ### 电脑端插件
 
@@ -104,8 +134,14 @@ docs                    市场调研 / 方案分析 / 本地验证记录 / App �
 plugins/dsh-pocket      dsh-pocket 上游源码（GPL-2.0，链接安装）
 plugins/dsh-web-mobile  dsh-web-mobile 上游源码（MIT，链接安装）
 app                      Capacitor Android 工程（www 前端 + 原生插件）
-scripts                  构建辅助、CDP 调试、图标生成、签名引导
+scripts                  构建辅助、CDP 调试、事件流观察、图标生成、签名引导
+scripts/lib/pocket-auth.cjs  运行时获取 dsh-pocket 会话 cookie（脚本共用，不硬编码密钥）
 UPSTREAM.md              上游源码版本记录
+```
+
+> `scripts/` 下的事件流观察脚本（`listen-*.cjs`、`scan-bundle*.mjs`）会自动通过
+> `lib/pocket-auth.cjs` 读取电脑本地 `~/.dsh/dsh-pocket/token-lan` 里的 PIN 现场登录，
+> 或读取 `DSH_POCKET_COOKIE` 环境变量——**不要把任何 cookie / PIN 硬编码进脚本或提交到仓库**。
 ```
 
 ## 上游与许可
@@ -122,7 +158,9 @@ UPSTREAM.md              上游源码版本记录
 
 ## 安全提示
 
-- DSH 能执行电脑上的代码：配对 URL / PIN 就是钥匙，**不要分享给别人**
+- DSH 能执行电脑上的代码：配对 URL / PIN / 会话 cookie 就是钥匙，**不要分享给别人**
+- `dsh_pocket_token` cookie 是会话凭证（30 天有效）：拿到它 + 隧道 URL 就能
+  完全控制你的 DSH 会话——**不要写进代码、提交到仓库、或发到任何地方**
 - 公网 URL 每次重启轮换；局域网 PIN 建议保持开启
 - 配对数据在设备端以 AndroidKeyStore 加密存储
 
