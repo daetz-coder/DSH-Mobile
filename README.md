@@ -11,9 +11,12 @@
 - **原生 App 交互**：沉浸式无浏览器导航栏，Android 返回键回配对列表
 - **zh/en 双语切换**：跟随系统语言，可在 App 内随时切换
 - **深色模式跟随**：与 DSH 的 `data-ds-dark-theme` 同步
-- **连接状态指示**：配对列表实时显示在线 / 离线 / 受密码保护
 - **局域网 + 公网**：同 WiFi 直连；公网走 cloudflared 快速隧道（URL 每次重启轮换）
 - **更新提示**：校验 GitHub Releases，有新版本时提示
+- **常驻状态通知（同步原生进度）**：通知栏持续显示电脑 DSH 输入框上方的原生状态文本（如 `Deep diving...1分45秒`），逐秒同步；任务结束/停止自动转为「已完成 · 本次用时」——不用打开 App 就能看进度
+- **HITL 提醒**：需要审批 / agent 提问时，瞬态弹窗提示（不会频繁打扰）
+- **配对状态徽标**：配对列表实时显示在线 / 离线 / 受密码保护（`.` 绿/红/锁）
+- **通知权限**：Android 13+ 首次使用拉起系统授权弹窗，之后常驻状态条可选清除
 
 ## 架构
 
@@ -21,10 +24,12 @@
 ┌──────────────┐  扫码/手动配对          ┌────────────────────────────┐
 │ DSH-Mobile   │ ─────────────────────→  │ 电脑端 dsh web (:3080)     │
 │ Capacitor    │  URL (LAN :3081 或      │  ├ 官方 DSH Web UI          │
-│ Android 壳   │  公网 trycloudflare)    │  └ dsh-pocket 代理(PIN 门)  │
-│  ├ SecureStore (Keystore 加密)         └────────────────────────────┘
-│  ├ AuthBridge (原生 PIN 登录/导航)
-│  └ QrScanner (CameraX+ZXing, 无 GMS)
+│ Android 壳   │  公网 trycloudflare)    │  ├ .Md3f7G_turnStatus 原生  │
+│  ├ SecureStore (Keystore 加密)         │  │  状态文本（输入框上方）   │
+│  ├ AuthBridge (原生 PIN 登录/导航)     │  └ dsh-pocket 代理(PIN 门)  │
+│  ├ QrScanner (CameraX+ZXing, 无 GMS)   └────────────────────────────┘
+│  ├ MainActivity 状态轮询 → 常驻通知 │
+│  └ DsEventWatcher (WS) → HITL 弹窗 │
 └──────────────┘
 ```
 
@@ -32,6 +37,13 @@
   （避免已种 cookie 造成误判）；`login()` 原生 POST `/pocket-login` 拿会话
   token；`open()` 整页导航使远程成为 top-level（同站 cookie 天然生效）。
 - 断线/HTTP 错误由 `MainActivity` 原生监听并弹 Toast 提示。
+- **状态通知**：`MainActivity` 每 2s 向 DSH 页面注入脚本读取 `.Md3f7G_turnStatus`
+  的原生文本（`Deep diving...` / 计时），镜像为常驻通知（id=100）；连续
+  4 次读到相同文本判定任务结束 → 转「已完成 · 本次用时」。**不自计时，
+  与 DSH 界面显示完全一致**。
+- **HITL 提醒**：`DsEventWatcher`（手写最小 WebSocket 客户端）订阅
+  `/api/events.mux`，当出现 `approval/asked` / `approval/requested` /
+  ask-question 类事件时弹瞬态通知（审批/提问才打扰）。
 
 ## 环境要求
 
@@ -119,3 +131,4 @@ UPSTREAM.md              上游源码版本记录
 - [`docs/01-市场调研与方案分析.md`](docs/01-市场调研与方案分析.md) — 生态调研与两条路线决策
 - [`docs/02-本地验证记录.md`](docs/02-本地验证记录.md) — 真机联调踩坑与结论
 - [`docs/03-App壳架构.md`](docs/03-App壳架构.md) — App 壳设计决策
+- [`docs/04-状态通知与HITL提醒.md`](docs/04-状态通知与HITL提醒.md) — 状态条 / HITL 弹窗实现
