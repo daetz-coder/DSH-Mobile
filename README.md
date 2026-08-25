@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/platform-Android-3ddc84" alt="platform: Android">
   <img src="https://img.shields.io/badge/Android-8%2B-3ddc84" alt="Android 8+">
   <img src="https://img.shields.io/badge/Capacitor-8-3880ff" alt="Capacitor 8">
-  <img src="https://img.shields.io/badge/version-1.0-blue" alt="version 1.0">
+  <img src="https://img.shields.io/badge/version-1.0.1-blue" alt="version 1.0.1">
   <img src="https://img.shields.io/badge/license-GPL--2.0%20%2F%20MIT-blue" alt="license">
   <a href="https://github.com/topics/dsh-plugin"><img src="https://img.shields.io/badge/dsh--plugin-community-brightgreen" alt="dsh-plugin"></a>
 </p>
@@ -66,7 +66,7 @@ notification mirrors the desktop's native progress text second-by-second.
    Plugin market: [dshmarket.com](https://dshmarket.com)
    ([dsh-pocket](https://dshmarket.com/p/shaobeichen/dsh-pocket/) ·
    [dsh-web-mobile](https://dshmarket.com/p/mexiaosqwq/dsh-web-mobile/)).
-   Tested versions (recommended for DSH-Mobile v1.0.0): **dsh-pocket v1.13.4** ·
+   Tested versions (recommended for DSH-Mobile v1.0.1): **dsh-pocket v1.13.4** ·
    **dsh-web-mobile v2.1.1** — no other extensions are required.
 
 2. **Phone** — install DSH-Mobile (APK from [Releases](https://github.com/daetz-coder/DSH-Mobile/releases), or sideload).
@@ -99,7 +99,7 @@ notification mirrors the desktop's native progress text second-by-second.
 | Channel | How |
 |---------|-----|
 | **Landing page** | [daetz-coder.github.io/DSH-Mobile](https://daetz-coder.github.io/DSH-Mobile/) — direct "Download APK" button |
-| **GitHub Release** | [Releases](https://github.com/daetz-coder/DSH-Mobile/releases) — `DSH-Mobile.apk` per tag (built by CI) |
+| **GitHub Release** | [Releases](https://github.com/daetz-coder/DSH-Mobile/releases) — `DSH-Mobile.apk` per tag (built by CI) · [CHANGELOG](CHANGELOG.md) |
 | **Obtainium** | One-tap add: [`obtainium://app/github.com/daetz-coder/DSH-Mobile`](obtainium://app/github.com/daetz-coder/DSH-Mobile) — or add `https://github.com/daetz-coder/DSH-Mobile` as an app source; it tracks GitHub Releases and auto-updates |
 | **Sideload** | `adb install -r DSH-Mobile.apk`, or open the APK on the phone |
 | **Build from source** | see *For developers* below |
