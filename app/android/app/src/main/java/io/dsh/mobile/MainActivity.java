@@ -81,13 +81,17 @@ public class MainActivity extends BridgeActivity {
                     wv.post(() -> wv.evaluateJavascript(
                             "(function(){" +
                             // Guard 1: stop overscroll chaining in page CSS.
-                            // On edge-to-edge Android 15, overscrolling past the
-                            // top moves fixed headers under the floating status
-                            // bar where taps die (OPPO/ColorOS). This CSS forces
-                            // scroll containment instead of page translation.
+                            // The DSH message list scrolls inside a hash-named
+                            // inner container (e.g. .wSkVaW_scrollBody), not the
+                            // document — overscrolling past its bounds translates
+                            // the whole page view, dragging fixed headers up into
+                            // the floating status bar where taps die (OPPO).
+                            // Apply the rule to EVERY element (wildcard) because
+                            // the container class is minified/unpredictable.
                             "if(!document.getElementById('dsh-osc-guard')){" +
                             "var st=document.createElement('style');st.id='dsh-osc-guard';" +
-                            "st.textContent='html,body,#app,#root{overscroll-behavior-y:none!important;-webkit-overflow-scrolling:touch;}'" +
+                            "st.textContent='*{overscroll-behavior:contain!important;overscroll-behavior-y:contain!important;}" +
+                            "html,body{position:static!important;overflow-y:scroll!important;-webkit-overflow-scrolling:touch;}'" +
                             ";(document.head||document.documentElement).appendChild(st);}" +
                             "var e=document.querySelector('[class*=\"turnStatus\"]:not([class*=\"Clock\"])');" +
                             "var s=e?e.textContent.trim():'';" +
