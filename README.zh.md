@@ -1,4 +1,4 @@
-# 📱 DSH-Mobile —— 把 DeepSeek Harness 装进口袋
+# <img src="assets/app-icon.png" width="32" height="32" alt="DSH-Mobile 图标"> DSH-Mobile —— 把 DeepSeek Harness 装进口袋
 
 [English](README.md) | **中文**
 

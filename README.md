@@ -1,4 +1,4 @@
-# 📱 DSH-Mobile — DeepSeek Harness, in your pocket
+# <img src="assets/app-icon.png" width="32" height="32" alt="DSH-Mobile icon"> DSH-Mobile — DeepSeek Harness, in your pocket
 
 **English** | [中文](README.zh.md)
 
