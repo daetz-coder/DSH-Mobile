@@ -211,47 +211,49 @@ public class DsEventWatcher {
     private void handleFrame(String text) {
         if (text == null || !text.contains("session/event")) return;
 
-        // Only surface notifications when the agent needs the human:
-        //   1) a permission/approval request (tool call escalated to the user),
-        //   2) an ask-user / question tool (agent is asking the operator).
-        // Everything else (tool progress, step ends, replies) is silent so the
-        // phone is not spammed while the agent just works.
+        // Notify ONLY when the agent needs the human: a permission/approval
+        // request, an ask/question tool call, or an event type in the
+        // user-question/approval family. Everything else stays silent.
         if (isPermissionRequest(text)) {
             notify("DSH 需要审批", "Agent 请求一项需要你批准的操作");
-            return;
-        }
-        if (isAskUserTool(text)) {
+        } else if (isAskUserTool(text)) {
             notify("DSH 向你提问", "Agent 正在等待你的回答");
+        } else if (isQuestionEvent(text)) {
+            notify("DSH 向你提问", "Agent 需要你的输入");
         }
     }
 
+    // user-question / approval event-type family (e.g. "user/question/...",
+    // "question/request", "approval/request", "permission/request")
+    private static final Pattern QUESTION_EVENT = Pattern.compile(
+            "\"type\":\\s*\"((?:user[-/])?question|approval|permission)[^\"]*\"",
+            Pattern.DOTALL);
+
     private static final Pattern PERMISSION_HINT = Pattern.compile(
-            "\"type\":\"tool/call\".*?\"(?:name|card|kind)\":\\s*\"(permission|approval|request|grant|allow)([^\"]*)\"",
+            "\"type\":\\s*\"tool/call\".*?\"(?:name|card|kind)\":\\s*\"(permission|approval|request|grant|allow)([^\"]*)\"",
             Pattern.DOTALL);
     private static final Pattern ASK_TOOL = Pattern.compile(
-            "\"type\":\"tool/call\".*?\"name\":\\s*\"([^\"]*(?:ask|question|input)[^\"]*)\"",
+            "\"type\":\\s*\"tool/call\".*?\"name\":\\s*\"([^\"]*(?:ask|question|input)[^\"]*)\"",
             Pattern.DOTALL);
 
     private boolean isPermissionRequest(String text) {
-        // A tool call that must be approved by the user before it runs.
-        // Detect the approval/permission view on the tool call, or a tool whose
-        // own name signals authorization.
-        if (text.contains("\"type\":\"tool/call\"")) {
+        if (text.contains("\"type\":\"tool/call\"") || text.contains("\"type\": \"tool/call\"")) {
             if (PERMISSION_HINT.matcher(text).find()) return true;
-            // dsh approval often surfaces as tool arguments requesting permission,
-            // or a dedicated "permission"/"approve" tool name.
             if (text.matches("(?s).*\"(name|card|kind)\"\\s*:\\s*\"(permission|approval)\".*")) return true;
         }
         return false;
     }
 
     private boolean isAskUserTool(String text) {
-        // ask_user_question and similar HITL tools.
-        if (!text.contains("\"type\":\"tool/call\"")) return false;
+        if (!(text.contains("\"type\":\"tool/call\"") || text.contains("\"type\": \"tool/call\""))) return false;
         Matcher m = ASK_TOOL.matcher(text);
         if (!m.find()) return false;
         String name = m.group(1).toLowerCase(Locale.ROOT);
         return name.contains("ask") || name.contains("question") || name.contains("input");
+    }
+
+    private boolean isQuestionEvent(String text) {
+        return QUESTION_EVENT.matcher(text).find();
     }
 
     private void notify(final String title, final String body) {
