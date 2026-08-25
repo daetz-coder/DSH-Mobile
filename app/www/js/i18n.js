@@ -163,5 +163,21 @@ export function initI18n() {
     btn.addEventListener('click', () => setLang(btn.getAttribute('data-lang')));
   });
   setLang(currentLang);
+  initThemeFollow();
   return currentLang;
+}
+
+/**
+ * Mirror the DSH dark theme onto the shell: the harness toggles the document
+ * via data-ds-dark-theme driven by prefers-color-scheme. We follow the same
+ * system preference so the pairing list matches the harness look.
+ */
+function initThemeFollow() {
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    document.documentElement.setAttribute('data-ds-dark-theme', mq.matches ? 'true' : 'false');
+  };
+  apply();
+  if (mq.addEventListener) mq.addEventListener('change', apply);
+  else mq.addListener(apply);
 }

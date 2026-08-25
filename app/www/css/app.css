@@ -24,6 +24,24 @@
   --safe-right: env(safe-area-inset-right, 0px);
 }
 
+/* DSH-dark-theme parity: the harness flips these via [data-ds-dark-theme].
+   The shell mirrors the same attribute so list/dialogs stay continuous. */
+html[data-ds-dark-theme="true"] {
+  --dsh-bg: #1a1a1e;
+  --dsh-surface: #222226;
+  --dsh-surface-2: #2c2c31;
+  --dsh-primary: #4d8bf0;
+  --dsh-primary-weak: rgba(77, 139, 240, 0.16);
+  --dsh-text: #e8e8ea;
+  --dsh-text-dim: rgba(232, 232, 234, 0.6);
+  --dsh-text-faint: rgba(232, 232, 234, 0.38);
+  --dsh-border: rgba(232, 232, 234, 0.14);
+  --dsh-danger: #e5534b;
+  --dsh-ok: #3fb950;
+}
+html[data-ds-dark-theme="true"] .toast { background: rgba(232, 232, 234, 0.92); color: #1a1a1e; }
+html[data-ds-dark-theme="true"] .pair-status-unknown { background: rgba(232, 232, 234, 0.3); }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
